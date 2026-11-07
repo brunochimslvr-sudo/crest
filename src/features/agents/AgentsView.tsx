@@ -8,6 +8,7 @@ import { Button, Empty, Skeleton } from "../../ui/controls";
 import { t } from "../../i18n";
 import { agents, refreshAgentsNow, useAgentsViewer, type AgentsError } from "./store";
 import { resumeCommand, spanParts, waitedMs, type AgentSession, type Phase } from "./sessions";
+import { AgentChat } from "./AgentChat";
 
 /** Rows drawn; the order puts the sessions that need the user first, so what is cut is the least urgent. */
 const SHOWN = 200;
@@ -78,8 +79,38 @@ function span(ms: number): string {
  *   ● Idle        docs                                            3 min   [copy]
  */
 export function AgentsView() {
+  const [showSessions, setShowSessions] = useState(false);
+  // Polled while this tool is open, not only in the list, so the dot can tell that a session needs the user.
   useAgentsViewer();
-  const { sessions, skipped, waits, error, loading, updatedAt } = agents.use();
+  const { sessions, loading } = agents.use();
+  const needsYou = sessions.some((s) => s.phase === "waiting");
+  return (
+    <div className="relative flex h-full min-h-0 flex-col gap-2 px-4 pb-3 pt-1">
+      <HeaderActions>
+        {showSessions && (
+          <HeaderButton label={t("Aktualisieren")} onClick={refreshAgentsNow}>
+            <motion.span className="flex" animate={{ rotate: loading ? 360 : 0 }} transition={loading ? spin : { duration: 0 }}>
+              <ArrowClockwise size={14} weight="bold" />
+            </motion.span>
+          </HeaderButton>
+        )}
+        <button
+          type="button"
+          aria-pressed={showSessions}
+          onClick={() => setShowSessions(!showSessions)}
+          className="pressable pressable-fill flex h-7 items-center gap-1.5 rounded-full px-2.5 text-footnote text-label-2 aria-pressed:bg-fill-3 aria-pressed:text-label"
+        >
+          {needsYou && <span className="size-2 rounded-full bg-orange" aria-hidden />}
+          {showSessions ? t("Unterhaltung") : t("Sitzungen")}
+        </button>
+      </HeaderActions>
+      {showSessions ? <div className="min-h-0 flex-1"><SessionsView /></div> : <AgentChat />}
+    </div>
+  );
+}
+
+function SessionsView() {
+  const { sessions, skipped, waits, error, updatedAt } = agents.use();
   const [copied, setCopied] = useState<{ key: string; ok: boolean } | null>(null);
 
   const copy = async (s: AgentSession) => {
@@ -93,22 +124,11 @@ export function AgentsView() {
     window.setTimeout(() => setCopied((c) => (c?.key === s.key ? null : c)), 1600);
   };
 
-  const actions = (
-    <HeaderActions>
-      <HeaderButton label={t("Aktualisieren")} onClick={refreshAgentsNow}>
-        <motion.span className="flex" animate={{ rotate: loading ? 360 : 0 }} transition={loading ? spin : { duration: 0 }}>
-          <ArrowClockwise size={14} weight="bold" />
-        </motion.span>
-      </HeaderButton>
-    </HeaderActions>
-  );
-
   // Nothing to show yet, or the CLI is missing or too old.
   if (!sessions.length && error) {
     const e = agentsError[error];
     return (
       <>
-        {actions}
         <Empty icon={WarningCircle} title={t(e.title)} text={e.hint && t(e.hint)} action={<Button onClick={refreshAgentsNow}>{t("Erneut versuchen")}</Button>} />
       </>
     );
@@ -116,7 +136,6 @@ export function AgentsView() {
   if (updatedAt === null) {
     return (
       <>
-        {actions}
         <div className="flex h-full flex-col gap-2 px-4 pt-1" aria-busy="true">
           <Skeleton className="h-11 w-full" />
           <Skeleton className="h-11 w-full" />
@@ -128,7 +147,6 @@ export function AgentsView() {
   if (!sessions.length) {
     return (
       <>
-        {actions}
         <Empty icon={Robot} title={t("Keine Sitzungen")} text={t("Starte claude in einem Terminal, dann erscheint die Sitzung hier")} />
       </>
     );
@@ -139,7 +157,6 @@ export function AgentsView() {
   const more = sessions.length - shown.length + skipped;
   return (
     <motion.div className="flex h-full flex-col gap-2 px-4 pt-1 pb-3" initial={{ opacity: 0 }} animate={{ opacity: 1, transition: content.enter }}>
-      {actions}
       <div className="flex shrink-0 items-baseline gap-1.5 text-caption text-label-3" aria-live="polite">
         <span>{t(sessions.length === 1 ? "{n} Sitzung" : "{n} Sitzungen", { n: sessions.length })}</span>
         {waiting > 0 && <span className="font-medium text-orange">· {t(waiting === 1 ? "{n} braucht dich" : "{n} brauchen dich", { n: waiting })}</span>}

@@ -3,8 +3,9 @@
 // `npm run i18n` (--fix adds missing entries as "TODO" and sorts alphabetically; nothing is deleted).
 import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = new URL("../src/", import.meta.url).pathname.replace(/^\/(\w:)/, "$1");
+const root = fileURLToPath(new URL("../src/", import.meta.url));
 const dictPath = join(root, "i18n", "en.json");
 const dict = JSON.parse(readFileSync(dictPath, "utf8"));
 const fix = process.argv.includes("--fix");

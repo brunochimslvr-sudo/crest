@@ -26,7 +26,8 @@ import { monitor, monitorMetrics, monitors, notchBusy, sharedSpan } from "./moni
 import { useMirror } from "./mirror";
 import { ROW, rowRoom, surfaceWidth } from "./row/layout";
 import { limits, toPageCss } from "../features/window/panelSize";
-import { HeaderButton, ToolScope, activeTool, headerSlot } from "./header";
+import { HeaderButton, ToolScope, activeTool, headerSlot, leadSlot } from "./header";
+import { isMac } from "../platform/native";
 import { sizeOverride } from "./size";
 import { NotchShape } from "./NotchShape";
 import { ClosedResize, ClosedResizeBar, closedEdit, closedLive } from "./ClosedResize";
@@ -488,18 +489,22 @@ function Header({ title }: { title: string }) {
   return (
     // Empty header space = drag handle; the hit zone around it starts the drag (one handler, or two drags would run).
     <div data-drag-handle className="flex shrink-0 items-center justify-between gap-3 ps-5 pe-3" style={{ height: HEADER_HEIGHT + 4 }}>
-      <div className="relative min-w-0 flex-1">
-        <AnimatePresence mode="popLayout" initial={false}>
-          <motion.h2
-            key={title}
-            className="truncate text-title font-semibold"
-            initial={{ opacity: 0, filter: "blur(4px)" }}
-            animate={{ opacity: 1, filter: "blur(0px)", transition: content.enter }}
-            exit={{ opacity: 0, filter: "blur(4px)", transition: content.exit }}
-          >
-            {title}
-          </motion.h2>
-        </AnimatePresence>
+      <div className="flex min-w-0 flex-1 items-baseline gap-3">
+        <div className="relative min-w-0 shrink-0">
+          <AnimatePresence mode="popLayout" initial={false}>
+            <motion.h2
+              key={title}
+              className="truncate text-title font-semibold"
+              initial={{ opacity: 0, filter: "blur(4px)" }}
+              animate={{ opacity: 1, filter: "blur(0px)", transition: content.enter }}
+              exit={{ opacity: 0, filter: "blur(4px)", transition: content.exit }}
+            >
+              {title}
+            </motion.h2>
+          </AnimatePresence>
+        </div>
+        {/* A tool's own choices next to the title (<HeaderLead>). On a Mac with a camera it stops short of the middle. */}
+        <div ref={(el) => leadSlot.set(el)} className={`grid min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] ${isMac ? "max-w-[190px]" : ""}`} />
       </div>
       <div className="flex items-center gap-1">
         {/* Tools render here via <HeaderActions> (src/notch/header.tsx). The grid stacks old and new during a switch. */}

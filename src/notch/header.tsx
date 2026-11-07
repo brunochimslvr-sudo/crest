@@ -11,6 +11,9 @@ import { createStore } from "../lib/store";
  */
 export const headerSlot = createStore<HTMLElement | null>(null);
 
+/** Beside the title, for a tool whose choice of context belongs there (the Agents tool puts its projects in it). */
+export const leadSlot = createStore<HTMLElement | null>(null);
+
 /** The tool on screen (Notch.tsx), and the tool a view belongs to. */
 export const activeTool = createStore<string | null>(null);
 export const ToolScope = createContext<string | null>(null);
@@ -25,6 +28,25 @@ export function HeaderActions({ children }: { children: ReactNode }) {
   return createPortal(
     <motion.div
       className="col-start-1 row-start-1 flex items-center justify-end gap-1"
+      initial={{ opacity: 0, filter: "blur(4px)" }}
+      animate={{ opacity: 1, filter: "blur(0px)", transition: content.enter }}
+      exit={{ opacity: 0, filter: "blur(4px)", transition: content.exit }}
+    >
+      {children}
+    </motion.div>,
+    slot,
+  );
+}
+
+/** Like HeaderActions, but next to the title. */
+export function HeaderLead({ children }: { children: ReactNode }) {
+  const slot = leadSlot.use();
+  const owner = useContext(ToolScope);
+  const active = activeTool.use();
+  if (!slot || (owner !== null && owner !== active)) return null;
+  return createPortal(
+    <motion.div
+      className="col-start-1 row-start-1 flex min-w-0 items-baseline gap-3"
       initial={{ opacity: 0, filter: "blur(4px)" }}
       animate={{ opacity: 1, filter: "blur(0px)", transition: content.enter }}
       exit={{ opacity: 0, filter: "blur(4px)", transition: content.exit }}

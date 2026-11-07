@@ -512,6 +512,7 @@ pub fn run() {
             #[cfg(windows)]
             capture::find::find_highlight,
             agents::agents_list,
+            agents::agents_chat,
             mic::mic_mute,
             sharing::sharing_hide,
             ];

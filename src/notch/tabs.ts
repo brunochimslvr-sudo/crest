@@ -138,7 +138,7 @@ export const tabs: NotchTab[] = ([
   { id: "colour", hue: "purple", label: "Farbe", icon: Eyedropper, size: { w: 620, h: 420 }, View: ColourView },
   { id: "clocks", hue: "indigo", label: "Uhren", icon: GlobeHemisphereWest, size: { w: 620, h: 372 }, View: ClocksView },
   { id: "teleprompter", hue: "amber", label: "Prompter", icon: Scroll, size: { w: 560, h: 340 }, View: TeleprompterView },
-  { id: "agents", hue: "indigo", label: "Agents", icon: Robot, size: { w: 560, h: 320 }, View: AgentsView },
+  { id: "agents", hue: "indigo", label: "Agents", icon: Robot, size: { w: 620, h: 460 }, View: AgentsView },
   { id: "calc", hue: "indigo", label: "Rechner", icon: Calculator, size: { w: 600, h: 320 }, View: CalcView },
 ] satisfies NotchTab[]).filter((t) => !isMac || !WINDOWS_ONLY.has(t.id));
 
