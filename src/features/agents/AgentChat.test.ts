@@ -116,7 +116,7 @@ test("the reply shows while it is written, and a second message waits for the fi
   h.emit({ thinking: "Hmm", text: "Partial answer" });
   assert.equal(h.runs.get()["C:\\work"].reply, "Partial answer");
   assert.equal(h.runs.get()["C:\\work"].thinking, "Hmm");
-  const sends = () => h.calls.filter((call) => call.command === "agents_chat").length;
+  const sends = () => h.calls.filter((call: { command: string }) => call.command === "agents_chat").length;
   await h.send({ ...h.projects.get()[0], draft: "Too soon" });
   assert.equal(sends(), 1);
   h.resolve(reply);
@@ -128,7 +128,7 @@ test("a retry after a refused action allows edits and leaves the draft alone", a
   h.edit("C:\\work", { draft: "Half typed" });
   const task = h.send(h.projects.get()[0], { text: "Try again." });
   assert.equal(h.projects.get()[0].draft, "Half typed");
-  const call = h.calls.find((item) => item.command === "agents_chat")!;
+  const call = h.calls.find((item: { command: string }) => item.command === "agents_chat")!;
   assert.equal(call.args.allowEdits, true);
   assert.match(call.args.prompt, /Try again\./);
   h.reject("failed");

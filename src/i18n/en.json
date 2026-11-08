@@ -1,4 +1,5 @@
 {
+ "Der Agent wollte einen Befehl ausführen, den die CLI abgelehnt hat": "The agent wanted to run a command, which the CLI refused",
  "Unterhaltung": "Conversation",
  "Sitzungen": "Sessions",
  "Projekte": "Projects",

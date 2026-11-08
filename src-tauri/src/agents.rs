@@ -454,7 +454,21 @@ fn chat(agent: Agent, cwd: String, model: String, effort: String, prompt: String
     if !done.success {
         return Err(chat_failure(&done.stdout, &done.stderr));
     }
-    answer(&agent, &done.stdout).ok_or_else(|| reason(&done.stdout).map_or("no-response".to_string(), |text| format!("cli:{text}")))
+    answer(&agent, &done.stdout).ok_or_else(|| {
+        if only_refused(&agent, &done.stdout) { return "permission-denied".to_string(); }
+        reason(&done.stdout).map_or("no-response".to_string(), |text| format!("cli:{text}"))
+    })
+}
+
+/// A turn that ended without a word because the CLI refused what the agent tried: Antigravity then answers SUCCESS with an empty
+/// response and the refused actions, which is not the same as an agent that said nothing.
+fn only_refused(agent: &Agent, output: &str) -> bool {
+    use serde_json::Value;
+    matches!(agent, Agent::Gemini) && serde_json::from_str::<Value>(output).is_ok_and(|result| {
+        result["status"] == "SUCCESS"
+            && result["response"].as_str().is_some_and(|text| text.trim().is_empty())
+            && result["denied_actions"].as_array().is_some_and(|entries| !entries.is_empty())
+    })
 }
 
 /// Goes on a command line, so it must not read as an option. Both CLIs use UUIDs; this allows for a change of format.
@@ -559,7 +573,9 @@ fn answer(agent: &Agent, output: &str) -> Option<AgentReply> {
                 return None;
             }
             let field = if matches!(agent, Agent::Claude) { "result" } else { "response" };
-            let denied = result["permission_denials"].as_array().is_some_and(|entries| !entries.is_empty());
+            // What the CLI refused: Claude lists `permission_denials`, Antigravity `denied_actions`.
+            let denied_key = if matches!(agent, Agent::Claude) { "permission_denials" } else { "denied_actions" };
+            let denied = result[denied_key].as_array().is_some_and(|entries| !entries.is_empty());
             let session = if matches!(agent, Agent::Claude) { result["session_id"].as_str().map(str::to_owned) } else { None };
             (result[field].as_str()?.to_owned(), result["usage"].clone(), denied, session)
         }
@@ -871,6 +887,20 @@ mod tests {
         assert!(!chat_args(&Agent::Claude, "m", "low", None, false).contains(&"--resume".to_string()));
         assert!(chat_args(&Agent::Claude, "m", "low", None, true).windows(2).any(|pair| pair == ["--permission-mode", "acceptEdits"]));
         assert!(!chat_args(&Agent::Gemini, "m", "low", Some("id"), false).contains(&"id".to_string()));
+    }
+
+    #[test]
+    fn an_antigravity_turn_that_only_hit_a_refusal_says_so() {
+        let refused = r#"{"status":"SUCCESS","response":"","usage":{"total_tokens":9},"denied_actions":[{"action":"command","display_name":"RunCommand"}]}"#;
+        assert!(answer(&Agent::Gemini, refused).is_none());
+        assert!(only_refused(&Agent::Gemini, refused));
+        // Words with a refusal are an answer, marked so the page can say it.
+        let said = r#"{"status":"SUCCESS","response":"Done","denied_actions":[{"action":"command"}]}"#;
+        assert!(answer(&Agent::Gemini, said).unwrap().permission_denied);
+        assert!(!only_refused(&Agent::Gemini, said));
+        // Silence without a refusal stays "no response".
+        assert!(!only_refused(&Agent::Gemini, r#"{"status":"SUCCESS","response":"","denied_actions":[]}"#));
+        assert!(!only_refused(&Agent::Claude, refused));
     }
 
     #[test]

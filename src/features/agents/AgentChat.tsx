@@ -146,6 +146,7 @@ const errorText: Record<string, string> = {
   "no-response": "Der Agent hat keine Antwort zurückgegeben",
   "invalid-input": "Prüfe Modell, Aufwand und Nachrichtenlänge",
   busy: "In diesem Projekt arbeitet bereits ein Agent, oder es laufen schon vier",
+  "permission-denied": "Der Agent wollte einen Befehl ausführen, den die CLI abgelehnt hat",
 };
 
 /** What the page shows for a code from the backend; `cli:` carries what the CLI itself said. */
