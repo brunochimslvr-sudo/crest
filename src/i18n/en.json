@@ -1670,5 +1670,12 @@
  "Chips zum Dekodieren": "Decode chips",
  "Ein kleiner Chip an Einträgen, die ein JWT, Unix-Zeit, Base64, eine UUID, JSON, eine Farbe oder ein Link mit Tracking sind. Alles bleibt auf dem Rechner.": "A small chip on entries that look like a JWT, Unix time, Base64, a UUID, JSON, a colour or a link with tracking. Everything stays on this computer.",
  "Vollständig lesen": "Read in full",
- "Die CLI meldet: {reason}": "The CLI says: {reason}"
+ "Die CLI meldet: {reason}": "The CLI says: {reason}",
+ "Denkt nach": "Thinking",
+ "Gedankengang": "Thoughts",
+ "Warten auf verfügbare Denkdetails der CLI.": "Waiting for thinking details made available by the CLI.",
+ "Ohne Ordner": "No folder",
+ "Im Chat öffnen": "Open in chat",
+ "Mit Bearbeitungsrechten wiederholen": "Retry with permission to edit",
+ "In diesem Projekt arbeitet bereits ein Agent, oder es laufen schon vier": "An agent is already working in this project, or four are running"
 }

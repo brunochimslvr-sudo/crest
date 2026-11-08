@@ -6,6 +6,15 @@ const user = (text: string): Message => ({ role: "user", text });
 const claude = (text: string): Message => ({ role: "claude", text, model: "opus" });
 const codex = (text: string): Message => ({ role: "codex", text, model: "gpt-6-luna" });
 
+test("published thinking is retained locally but never included in handoffs", () => {
+  const message: Message = { ...claude("Final answer"), thinking: "Thinking details should stay local" };
+  const prompt = planTurn([message], "codex", {}, "continue").prompt;
+  assert.ok(prompt.includes("Final answer"));
+  assert.ok(!prompt.includes("Thinking details"));
+  const [restored] = restoreProjects([{ cwd: "C:\\work", agent: "claude", model: "sonnet", effort: "medium", draft: "", messages: [message], sessions: {} }]);
+  assert.equal(restored.messages[0].thinking, message.thinking);
+});
+
 test("a follow-up to the same agent sends only the new message", () => {
   const messages = [user("first"), claude("answer ".repeat(500))];
   assert.deepEqual(planTurn(messages, "claude", { claude: "s1" }, "next"), { session: "s1", prompt: "next" });

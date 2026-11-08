@@ -1670,5 +1670,12 @@
  "Chips zum Dekodieren": "Метки расшифровки",
  "Ein kleiner Chip an Einträgen, die ein JWT, Unix-Zeit, Base64, eine UUID, JSON, eine Farbe oder ein Link mit Tracking sind. Alles bleibt auf dem Rechner.": "Маленькая метка на записях, похожих на JWT, Unix-время, Base64, UUID, JSON, цвет или ссылку с трекингом. Всё остаётся на компьютере.",
  "Vollständig lesen": "Читать полностью",
- "Die CLI meldet: {reason}": "CLI сообщает: {reason}"
+ "Die CLI meldet: {reason}": "CLI сообщает: {reason}",
+ "Denkt nach": "Размышляю",
+ "Gedankengang": "Рассуждения",
+ "Warten auf verfügbare Denkdetails der CLI.": "Ожидание сведений о рассуждениях от CLI.",
+ "Ohne Ordner": "Без папки",
+ "Im Chat öffnen": "Открыть в чате",
+ "Mit Bearbeitungsrechten wiederholen": "Повторить с правом на изменение",
+ "In diesem Projekt arbeitet bereits ein Agent, oder es laufen schon vier": "В этом проекте уже работает агент, или запущено четыре"
 }

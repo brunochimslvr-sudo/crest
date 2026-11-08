@@ -4,6 +4,7 @@ import { useGamingLive } from "../features/system/gaming";
 import { timer } from "../features/timer/store";
 import { dueTasks } from "../features/todos/store";
 import { waterDue } from "../features/water/store";
+import { useAgentsNeedYou } from "../features/agents/store";
 
 /**
  * Which tool opening the notch jumps to, by priority: gaming mode (turned on deliberately)
@@ -16,6 +17,7 @@ export function useLiveActivity(): { id: string | null } {
   const np = useNowPlaying();
   const reminder = dueTasks.use().length > 0;
   const drink = waterDue.use();
+  const agentWaits = useAgentsNeedYou();
   if (gaming) return { id: "system" };
   // A due reminder waits for an answer, so it goes before a timer that is still running.
   if (t.finished) return { id: "timer" };
@@ -23,6 +25,8 @@ export function useLiveActivity(): { id: string | null } {
   if (t.endsAt !== null) return { id: "timer" };
   if (call) return { id: "discord" };
   if (drink) return { id: "water" };
+  // A coding session that waits for an answer holds up work, so it goes before music.
+  if (agentWaits) return { id: "agents" };
   if (np?.isPlaying) return { id: "media" };
   return { id: null };
 }

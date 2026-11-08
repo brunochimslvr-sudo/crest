@@ -1670,5 +1670,12 @@
  "Chips zum Dekodieren": "Chips para decodificar",
  "Ein kleiner Chip an Einträgen, die ein JWT, Unix-Zeit, Base64, eine UUID, JSON, eine Farbe oder ein Link mit Tracking sind. Alles bleibt auf dem Rechner.": "Un pequeño chip en las entradas que parecen un JWT, tiempo Unix, Base64, un UUID, JSON, un color o un enlace con rastreo. Todo se queda en este equipo.",
  "Vollständig lesen": "Leer completo",
- "Die CLI meldet: {reason}": "La CLI indica: {reason}"
+ "Die CLI meldet: {reason}": "La CLI indica: {reason}",
+ "Denkt nach": "Pensando",
+ "Gedankengang": "Razonamiento",
+ "Warten auf verfügbare Denkdetails der CLI.": "Esperando los detalles de razonamiento que proporcione la CLI.",
+ "Ohne Ordner": "Sin carpeta",
+ "Im Chat öffnen": "Abrir en el chat",
+ "Mit Bearbeitungsrechten wiederholen": "Reintentar con permiso para editar",
+ "In diesem Projekt arbeitet bereits ein Agent, oder es laufen schon vier": "Ya hay un agente trabajando en este proyecto, o hay cuatro en marcha"
 }

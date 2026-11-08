@@ -8,6 +8,7 @@ import { PrivacyDots } from "../features/privacy/PrivacyDots";
 import { FOCUS_CLICKS, focusMode, setFocusMode } from "./focus";
 import { dragArea, edgeOf, useDragToMove, viewLine, windowLength, windowY } from "./drag";
 import { useLiveActivity } from "./live";
+import { useAgentsNeedYou } from "../features/agents/store";
 import { CompactRow } from "./row/CompactRow";
 import { CompactColumn } from "./row/CompactColumn";
 import { NoticeLayer } from "./row/NoticeLayer";
@@ -529,6 +530,7 @@ function Dock({ tabs, activeId }: { tabs: NotchTab[]; activeId: string }) {
   // Dot on the gear = update ready or unseen changes → jump straight to that section.
   const unseen = useUnseen().length > 0;
   const badge = updateReady || unseen;
+  const agentsWait = useAgentsNeedYou();
 
   // A strip of its own: buttons share its width up to 42 px each and never go below 24 px (WCAG target size), so a crowded dock
   // scrolls. The gear stays outside the scrolling part, always in reach, and a fade marks the side with more tools.
@@ -540,7 +542,7 @@ function Dock({ tabs, activeId }: { tabs: NotchTab[]; activeId: string }) {
       <div className="flex h-10 max-w-full items-center rounded-[14px] bg-fill-2 p-0.5">
         <div ref={strip} className="flex min-w-0 items-center gap-0.5 overflow-x-auto [scrollbar-width:none]" style={{ maskImage: fade, WebkitMaskImage: fade }}>
           {tabs.map((tab) => (
-            <DockButton key={tab.id} label={t(tab.label)} icon={tab.icon} hue={tab.hue} active={tab.id === activeId} onClick={() => switchTo(tab.id)} />
+            <DockButton key={tab.id} label={t(tab.label)} icon={tab.icon} hue={tab.hue} active={tab.id === activeId} badge={tab.id === "agents" && agentsWait} onClick={() => switchTo(tab.id)} />
           ))}
         </div>
         <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-separator" />

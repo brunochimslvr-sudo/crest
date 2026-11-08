@@ -1670,5 +1670,12 @@
  "Chips zum Dekodieren": "Chip di decodifica",
  "Ein kleiner Chip an Einträgen, die ein JWT, Unix-Zeit, Base64, eine UUID, JSON, eine Farbe oder ein Link mit Tracking sind. Alles bleibt auf dem Rechner.": "Un piccolo chip sulle voci che sembrano un JWT, un tempo Unix, Base64, un UUID, JSON, un colore o un link con tracciamento. Tutto resta su questo computer.",
  "Vollständig lesen": "Leggi per intero",
- "Die CLI meldet: {reason}": "La CLI segnala: {reason}"
+ "Die CLI meldet: {reason}": "La CLI segnala: {reason}",
+ "Denkt nach": "Sto pensando",
+ "Gedankengang": "Ragionamento",
+ "Warten auf verfügbare Denkdetails der CLI.": "In attesa dei dettagli di ragionamento forniti dalla CLI.",
+ "Ohne Ordner": "Senza cartella",
+ "Im Chat öffnen": "Apri nella chat",
+ "Mit Bearbeitungsrechten wiederholen": "Riprova con il permesso di modificare",
+ "In diesem Projekt arbeitet bereits ein Agent, oder es laufen schon vier": "In questo progetto lavora già un agente, oppure ne sono attivi quattro"
 }

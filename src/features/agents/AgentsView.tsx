@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { motion } from "motion/react";
-import { ArrowClockwise, Check, Copy, Robot, WarningCircle } from "@phosphor-icons/react";
+import { ArrowClockwise, CaretRight, ChatCircleText, Check, Copy, Robot, WarningCircle } from "@phosphor-icons/react";
 import { content, spin } from "../../design/motion";
 import { formatAgo } from "../../lib/format";
 import { HeaderActions, HeaderButton } from "../../notch/header";
 import { Button, Empty, Skeleton } from "../../ui/controls";
 import { t } from "../../i18n";
 import { agents, refreshAgentsNow, useAgentsViewer, type AgentsError } from "./store";
-import { resumeCommand, spanParts, waitedMs, type AgentSession, type Phase } from "./sessions";
-import { AgentChat } from "./AgentChat";
+import { folderKey, groupSessions, resumeCommand, spanParts, waitedMs, type AgentSession, type Phase } from "./sessions";
+import { AgentChat, openProject } from "./AgentChat";
 
 /** Rows drawn; the order puts the sessions that need the user first, so what is cut is the least urgent. */
 const SHOWN = 200;
@@ -104,14 +104,26 @@ export function AgentsView() {
           {showSessions ? t("Unterhaltung") : t("Sitzungen")}
         </button>
       </HeaderActions>
-      {showSessions ? <div className="min-h-0 flex-1"><SessionsView /></div> : <AgentChat />}
+      {showSessions ? <div className="min-h-0 flex-1"><SessionsView onChat={() => setShowSessions(false)} /></div> : <AgentChat />}
     </div>
   );
 }
 
-function SessionsView() {
+function SessionsView({ onChat }: { onChat: () => void }) {
   const { sessions, skipped, waits, error, updatedAt } = agents.use();
   const [copied, setCopied] = useState<{ key: string; ok: boolean } | null>(null);
+  // Folded projects (by working folder) and the finished sessions, which start folded.
+  const [folded, setFolded] = useState<ReadonlySet<string>>(new Set());
+  const [finishedOpen, setFinishedOpen] = useState(false);
+  const toggle = (key: string) => setFolded((all) => {
+    const next = new Set(all);
+    if (!next.delete(key)) next.add(key);
+    return next;
+  });
+  const chat = (s: AgentSession) => {
+    openProject(s.cwd);
+    onChat();
+  };
 
   const copy = async (s: AgentSession) => {
     let ok = true;
@@ -155,6 +167,10 @@ function SessionsView() {
   const waiting = sessions.filter((s) => s.phase === "waiting").length;
   const shown = sessions.slice(0, SHOWN);
   const more = sessions.length - shown.length + skipped;
+  const { groups, finished } = groupSessions(shown);
+  const row = (s: AgentSession, showCwd: boolean) => (
+    <Row key={s.key} s={s} now={updatedAt} wait={waitedMs(waits, s.key, updatedAt)} showCwd={showCwd} copied={copied?.key === s.key ? copied.ok : null} onCopy={() => void copy(s)} onChat={s.cwd ? () => chat(s) : null} />
+  );
   return (
     <motion.div className="flex h-full flex-col gap-2 px-4 pt-1 pb-3" initial={{ opacity: 0 }} animate={{ opacity: 1, transition: content.enter }}>
       <div className="flex shrink-0 items-baseline gap-1.5 text-caption text-label-3" aria-live="polite">
@@ -171,16 +187,40 @@ function SessionsView() {
         </div>
       )}
       <ul className="-mx-1 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-1 [scrollbar-width:none]" aria-label={t("Agents")}>
-        {shown.map((s) => (
-          <Row key={s.key} s={s} now={updatedAt} wait={waitedMs(waits, s.key, updatedAt)} copied={copied?.key === s.key ? copied.ok : null} onCopy={() => void copy(s)} />
-        ))}
+        {groups.map((g) => {
+          const key = folderKey(g.cwd);
+          const open = !folded.has(key);
+          return (
+            <li key={key || "-"} className="flex shrink-0 flex-col gap-1">
+              <button type="button" aria-expanded={open} onClick={() => toggle(key)} title={g.cwd}
+                className="pressable-fill flex min-w-0 items-center gap-1.5 rounded px-1 py-0.5 text-start text-caption text-label-3 hover:text-label-2">
+                <CaretRight size={10} weight="bold" className={`shrink-0 transition-transform ${open ? "rotate-90" : ""}`} aria-hidden />
+                <span className="truncate font-medium text-label-2">{g.name || t("Ohne Ordner")}</span>
+                <span className="shrink-0 tabular">{g.sessions.length}</span>
+                {g.waiting > 0 && <span className="size-1.5 shrink-0 rounded-full bg-orange" aria-label={t(g.waiting === 1 ? "{n} braucht dich" : "{n} brauchen dich", { n: g.waiting })} />}
+              </button>
+              {open && <ul className="flex flex-col gap-1">{g.sessions.map((s) => row(s, false))}</ul>}
+            </li>
+          );
+        })}
+        {finished.length > 0 && (
+          <li className="flex shrink-0 flex-col gap-1">
+            <button type="button" aria-expanded={finishedOpen} onClick={() => setFinishedOpen(!finishedOpen)}
+              className="pressable-fill flex items-center gap-1.5 rounded px-1 py-0.5 text-start text-caption text-label-3 hover:text-label-2">
+              <CaretRight size={10} weight="bold" className={`shrink-0 transition-transform ${finishedOpen ? "rotate-90" : ""}`} aria-hidden />
+              <span className="font-medium">{t("Beendet")}</span>
+              <span className="tabular">{finished.length}</span>
+            </button>
+            {finishedOpen && <ul className="flex flex-col gap-1">{finished.map((s) => row(s, true))}</ul>}
+          </li>
+        )}
         {more > 0 && <li className="px-2 py-1 text-caption text-label-3">{t("+{n} weitere", { n: more })}</li>}
       </ul>
     </motion.div>
   );
 }
 
-function Row({ s, now, wait, copied, onCopy }: { s: AgentSession; now: number; wait: number; copied: boolean | null; onCopy: () => void }) {
+function Row({ s, now, wait, showCwd, copied, onCopy, onChat }: { s: AgentSession; now: number; wait: number; showCwd: boolean; copied: boolean | null; onCopy: () => void; onChat: (() => void) | null }) {
   const tone = TONE[s.phase];
   const waitText = s.phase === "waiting" && wait >= SHOW_WAIT_MS ? t("Wartet seit {time}", { time: span(wait) }) : "";
   const details = [s.phase === "waiting" ? reasonText(s) : "", waitText, KIND[s.kind] ? t(KIND[s.kind]) : s.kind].filter(Boolean).join(" · ");
@@ -195,8 +235,8 @@ function Row({ s, now, wait, copied, onCopy }: { s: AgentSession; now: number; w
         <div className="truncate text-body font-medium text-label">{s.title || t("Sitzung")}</div>
         <div className="flex min-w-0 items-center text-caption text-label-3" title={[s.cwd, waitText && t("Ab dem Moment gezählt, in dem Crest die Sitzung zum ersten Mal wartend sah")].filter(Boolean).join("\n")}>
           {details && <span className={`shrink-0 ${s.phase === "waiting" ? "text-label-2" : ""}`}>{details}</span>}
-          {details && s.cwd && <span className="shrink-0 px-1">·</span>}
-          {s.cwd && (
+          {details && s.cwd && showCwd && <span className="shrink-0 px-1">·</span>}
+          {s.cwd && showCwd && (
             <span dir="ltr" className="min-w-0 truncate">
               {s.cwd}
             </span>
@@ -207,6 +247,18 @@ function Row({ s, now, wait, copied, onCopy }: { s: AgentSession; now: number; w
         <span className="tabular shrink-0 text-caption text-label-3" title={t("Seit dem Start")}>
           {span(now - s.startedAt)}
         </span>
+      )}
+      {onChat ? (
+        <button
+          aria-label={t("Im Chat öffnen")}
+          title={t("Im Chat öffnen")}
+          onClick={onChat}
+          className="pressable pressable-fill flex size-7 shrink-0 items-center justify-center rounded-full text-label-3 hover:text-label-2"
+        >
+          <ChatCircleText size={14} weight="bold" />
+        </button>
+      ) : (
+        <span className="size-7 shrink-0" aria-hidden />
       )}
       {s.sessionId ? (
         <button

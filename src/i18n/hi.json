@@ -1670,5 +1670,12 @@
  "Chips zum Dekodieren": "डिकोड चिप",
  "Ein kleiner Chip an Einträgen, die ein JWT, Unix-Zeit, Base64, eine UUID, JSON, eine Farbe oder ein Link mit Tracking sind. Alles bleibt auf dem Rechner.": "JWT, Unix समय, Base64, UUID, JSON, रंग या ट्रैकिंग वाले लिंक जैसी प्रविष्टियों पर एक छोटा चिप। सब कुछ इसी PC पर रहता है।",
  "Vollständig lesen": "पूरा पढ़ें",
- "Die CLI meldet: {reason}": "CLI ने बताया: {reason}"
+ "Die CLI meldet: {reason}": "CLI ने बताया: {reason}",
+ "Denkt nach": "सोच रहा है",
+ "Gedankengang": "विचार प्रक्रिया",
+ "Warten auf verfügbare Denkdetails der CLI.": "CLI से उपलब्ध विचार विवरण की प्रतीक्षा है।",
+ "Ohne Ordner": "कोई फ़ोल्डर नहीं",
+ "Im Chat öffnen": "चैट में खोलें",
+ "Mit Bearbeitungsrechten wiederholen": "संपादन की अनुमति के साथ दोबारा कोशिश करें",
+ "In diesem Projekt arbeitet bereits ein Agent, oder es laufen schon vier": "इस प्रोजेक्ट में पहले से एक एजेंट काम कर रहा है, या चार चल रहे हैं"
 }

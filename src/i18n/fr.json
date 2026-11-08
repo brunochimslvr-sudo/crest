@@ -1670,5 +1670,12 @@
  "Chips zum Dekodieren": "Pastilles de décodage",
  "Ein kleiner Chip an Einträgen, die ein JWT, Unix-Zeit, Base64, eine UUID, JSON, eine Farbe oder ein Link mit Tracking sind. Alles bleibt auf dem Rechner.": "Une petite pastille sur les entrées qui sont un JWT, une heure Unix, du Base64, un UUID, du JSON, une couleur ou un lien avec suivi. Tout reste sur cet ordinateur.",
  "Vollständig lesen": "Lire en entier",
- "Die CLI meldet: {reason}": "La CLI indique : {reason}"
+ "Die CLI meldet: {reason}": "La CLI indique : {reason}",
+ "Denkt nach": "Réflexion en cours",
+ "Gedankengang": "Raisonnement",
+ "Warten auf verfügbare Denkdetails der CLI.": "En attente des détails de raisonnement fournis par la CLI.",
+ "Ohne Ordner": "Sans dossier",
+ "Im Chat öffnen": "Ouvrir dans le chat",
+ "Mit Bearbeitungsrechten wiederholen": "Réessayer avec l’autorisation de modifier",
+ "In diesem Projekt arbeitet bereits ein Agent, oder es laufen schon vier": "Un agent travaille déjà dans ce projet, ou quatre sont en cours"
 }

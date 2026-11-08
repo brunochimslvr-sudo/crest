@@ -158,3 +158,61 @@ export function spanParts(ms: number): { d: number; h: number; m: number } {
   const min = Math.floor(Math.max(0, ms) / 60_000);
   return { d: Math.floor(min / 1440), h: Math.floor((min % 1440) / 60), m: min % 60 };
 }
+
+// ---------- How often to read, and what is news ----------
+
+/**
+ * How soon the next reading starts after the last one ended (so two never overlap).
+ * Looking at the list with a session busy or waiting: quick. Everything parked: slow. Notch closed: slower still,
+ * since then it only has to notice a session that begins to need the user.
+ */
+export const POLL = { liveMs: 3_000, idleMs: 30_000, backgroundLiveMs: 15_000 } as const;
+
+/** The delay before the next reading, from what the sessions are doing and whether the tool is on screen. */
+export function pollDelay(sessions: readonly AgentSession[], watched: boolean): number {
+  const live = sessions.some((s) => s.phase === "waiting" || s.phase === "working");
+  if (!live) return POLL.idleMs;
+  return watched ? POLL.liveMs : POLL.backgroundLiveMs;
+}
+
+/** The sessions that wait now and were not in `before` (the keys already announced). */
+export function newlyWaiting(before: ReadonlySet<string>, sessions: readonly AgentSession[]): AgentSession[] {
+  return sessions.filter((s) => s.phase === "waiting" && !before.has(s.key));
+}
+
+// ---------- Grouping ----------
+
+export interface SessionGroup {
+  /** The working folder as the sessions give it; "" for sessions without one. */
+  cwd: string;
+  name: string;
+  sessions: AgentSession[];
+  waiting: number;
+}
+
+/** Done and stopped sessions: nothing to do with them, so the page folds them away. */
+export const isFinished = (s: AgentSession) => s.phase === "done" || s.phase === "stopped";
+
+/** The same folder however it is written: separators, a trailing one and case (Windows). */
+export const folderKey = (cwd: string) => cwd.replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+
+/**
+ * The sessions of `sorted` (already in `compare` order) by project. The groups come in the order of their most urgent
+ * session; `finished` holds the done and stopped ones, newest first, apart from the groups.
+ */
+export function groupSessions(sorted: readonly AgentSession[]): { groups: SessionGroup[]; finished: AgentSession[] } {
+  const groups = new Map<string, SessionGroup>();
+  const finished: AgentSession[] = [];
+  for (const s of sorted) {
+    if (isFinished(s)) {
+      finished.push(s);
+      continue;
+    }
+    const key = folderKey(s.cwd);
+    let group = groups.get(key);
+    if (!group) groups.set(key, (group = { cwd: s.cwd, name: s.cwd ? lastFolder(s.cwd) : "", sessions: [], waiting: 0 }));
+    group.sessions.push(s);
+    if (s.phase === "waiting") group.waiting++;
+  }
+  return { groups: [...groups.values()], finished };
+}

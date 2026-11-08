@@ -17,7 +17,7 @@ export const agentIds = Object.keys(AGENTS) as Agent[];
 export const effortIds = ["low", "medium", "high"] as const;
 export type Effort = (typeof effortIds)[number];
 
-export type Message = { role: "user" | Agent; text: string; model?: string; tokens?: number; permissionDenied?: boolean };
+export type Message = { role: "user" | Agent; text: string; thinking?: string; model?: string; tokens?: number; permissionDenied?: boolean };
 export type Sessions = Partial<Record<Agent, string>>;
 export type Project = { cwd: string; agent: Agent; model: string; effort: Effort; draft: string; messages: Message[]; sessions: Sessions };
 export type Turn = { prompt: string; session?: string };

@@ -230,7 +230,21 @@ struct Finished {
     stderr: String,
 }
 
-fn capture(mut cmd: Command, input: Option<String>, timeout: Duration, cap: usize) -> Result<Finished, &'static str> {
+fn capture(cmd: Command, input: Option<String>, timeout: Duration, cap: usize) -> Result<Finished, &'static str> {
+    capture_progress(cmd, input, timeout, cap, None, |_| {})
+}
+
+// A byte cursor keeps partial JSON/UTF-8 in the pipe until a whole line is available.
+fn new_lines(pipe: &Pipe, offset: &mut usize, final_read: bool) -> String {
+    let bytes = pipe.bytes.lock().unwrap_or_else(|e| e.into_inner());
+    let unread = &bytes[*offset..];
+    let count = if final_read { unread.len() } else { unread.iter().rposition(|b| *b == b'\n').map_or(0, |i| i + 1) };
+    let text = String::from_utf8_lossy(&unread[..count]).into_owned();
+    *offset += count;
+    text
+}
+
+fn capture_progress(mut cmd: Command, input: Option<String>, timeout: Duration, cap: usize, cancel: Option<&AtomicBool>, mut progress: impl FnMut(&str)) -> Result<Finished, &'static str> {
     let mut child = cmd.spawn().map_err(|_| "not-started")?;
     let stdout = child.stdout.take().ok_or("failed")?;
     let stderr = child.stderr.take().ok_or("failed")?;
@@ -248,7 +262,14 @@ fn capture(mut cmd: Command, input: Option<String>, timeout: Duration, cap: usiz
     }
 
     let deadline = Instant::now() + timeout;
+    let mut offset = 0;
     let status = loop {
+        if cancel.is_some_and(|flag| flag.load(Ordering::SeqCst)) {
+            running.kill();
+            return Err("cancelled");
+        }
+        let lines = new_lines(&out, &mut offset, false);
+        if !lines.is_empty() { progress(&lines); }
         if out.over.load(Ordering::SeqCst) {
             running.kill();
             return Err("too-big");
@@ -283,6 +304,8 @@ fn capture(mut cmd: Command, input: Option<String>, timeout: Duration, cap: usiz
     if out.over.load(Ordering::SeqCst) {
         return Err("too-big");
     }
+    let lines = new_lines(&out, &mut offset, true);
+    if !lines.is_empty() { progress(&lines); }
     Ok(Finished { success: status.success(), stdout: out.text(), stderr: err.text() })
 }
 
@@ -294,24 +317,93 @@ pub enum Agent {
     Gemini,
 }
 
-static TURN_RUNNING: AtomicBool = AtomicBool::new(false);
+/// Turns running at once: request id, the project folder (normalised) and the cancel flag. One per project, a few in all.
+static ACTIVE_TURNS: Mutex<Vec<(String, String, Arc<AtomicBool>)>> = Mutex::new(Vec::new());
+const MAX_TURNS: usize = 4;
 
-struct Turn;
+struct Turn(String);
 
 impl Drop for Turn {
     fn drop(&mut self) {
-        TURN_RUNNING.store(false, Ordering::SeqCst);
+        let mut active = ACTIVE_TURNS.lock().unwrap_or_else(|error| error.into_inner());
+        active.retain(|(id, _, _)| id != &self.0);
     }
+}
+
+/// The same folder however it is written: case (Windows), separators and a trailing one.
+fn folder_key(cwd: &str) -> String {
+    cwd.trim().replace('\\', "/").trim_end_matches('/').to_lowercase()
+}
+
+/// What the page gets while a turn runs: the thinking so far and the reply so far.
+#[derive(serde::Serialize, Clone, PartialEq, Default)]
+pub struct Progress {
+    thinking: String,
+    text: String,
+}
+
+#[tauri::command]
+pub fn agents_cancel(request_id: String) -> bool {
+    let active = ACTIVE_TURNS.lock().unwrap_or_else(|error| error.into_inner());
+    if let Some((_, _, cancelled)) = active.iter().find(|(id, _, _)| id == &request_id) {
+        cancelled.store(true, Ordering::SeqCst);
+        return true;
+    }
+    false
+}
+
+const PROJECTS_FILE: &str = "agent-projects.json";
+const MAX_PROJECTS_FILE: usize = 32 * 1024 * 1024;
+
+fn projects_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    crate::portable::app_data_dir(app).map(|dir| dir.join(PROJECTS_FILE)).map_err(|_| "app-data".to_string())
+}
+
+/// The saved projects of the chat as the page wrote them, or nothing if there is no file yet.
+#[tauri::command]
+pub fn agents_projects_load(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    let path = projects_path(&app)?;
+    match std::fs::metadata(&path) {
+        Ok(meta) if meta.len() as usize > MAX_PROJECTS_FILE => return Err("too-big".into()),
+        Ok(_) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(_) => return Err("failed".into()),
+    }
+    std::fs::read_to_string(path).map(Some).map_err(|_| "failed".to_string())
+}
+
+/// Written whole, through a temporary file, so a crash in the middle leaves the old copy.
+#[tauri::command]
+pub fn agents_projects_save(app: tauri::AppHandle, data: String) -> Result<(), String> {
+    if data.len() > MAX_PROJECTS_FILE { return Err("too-big".into()); }
+    let path = projects_path(&app)?;
+    if let Some(dir) = path.parent() { std::fs::create_dir_all(dir).map_err(|_| "failed".to_string())?; }
+    let temp = path.with_extension("json.tmp");
+    std::fs::write(&temp, data).map_err(|_| "failed".to_string())?;
+    std::fs::rename(&temp, &path).map_err(|_| "failed".to_string())
 }
 
 /// `session` continues that conversation in the CLI itself, which then needs only the new message.
 #[tauri::command]
-pub async fn agents_chat(agent: Agent, cwd: String, model: String, effort: String, prompt: String, session: Option<String>) -> Result<AgentReply, String> {
-    tauri::async_runtime::spawn_blocking(move || chat(agent, cwd, model, effort, prompt, session))
-        .await.map_err(|_| "failed".to_string())?
+pub async fn agents_chat(agent: Agent, cwd: String, model: String, effort: String, prompt: String, session: Option<String>, request_id: String, allow_edits: Option<bool>, progress: tauri::ipc::Channel<Progress>) -> Result<AgentReply, String> {
+    if !valid_session(&request_id) { return Err("invalid-input".into()); }
+    let cancelled = Arc::new(AtomicBool::new(false));
+    let turn = {
+        let mut active = ACTIVE_TURNS.lock().unwrap_or_else(|error| error.into_inner());
+        let key = folder_key(&cwd);
+        // One agent per project at a time (two would write over each other's files), and a few in all.
+        if active.len() >= MAX_TURNS || active.iter().any(|(id, folder, _)| folder == &key || id == &request_id) { return Err("busy".into()); }
+        active.push((request_id.clone(), key, cancelled.clone()));
+        Turn(request_id)
+    };
+    let allow_edits = allow_edits.unwrap_or(false);
+    tauri::async_runtime::spawn_blocking(move || {
+        let _turn = turn;
+        chat(agent, cwd, model, effort, prompt, session, allow_edits, progress, &cancelled)
+    }).await.map_err(|_| "failed".to_string())?
 }
 
-fn chat(agent: Agent, cwd: String, model: String, effort: String, prompt: String, session: Option<String>) -> Result<AgentReply, String> {
+fn chat(agent: Agent, cwd: String, model: String, effort: String, prompt: String, session: Option<String>, allow_edits: bool, progress: tauri::ipc::Channel<Progress>, cancelled: &AtomicBool) -> Result<AgentReply, String> {
     if !matches!(effort.as_str(), "low" | "medium" | "high")
         || model.is_empty() || model.len() > 100 || !model.bytes().all(|c| c.is_ascii_alphanumeric() || b"-._".contains(&c))
         || prompt.trim().is_empty() || prompt.encode_utf16().count() > 12_000 || prompt.contains('\0')
@@ -323,13 +415,10 @@ fn chat(agent: Agent, cwd: String, model: String, effort: String, prompt: String
     if !cwd.is_absolute() || !cwd.is_dir() {
         return Err("invalid-directory".into());
     }
-    if TURN_RUNNING.swap(true, Ordering::SeqCst) {
-        return Err("busy".into());
-    }
-    let _turn = Turn;
+    if cancelled.load(Ordering::SeqCst) { return Err("cancelled".into()); }
     let executable = chat_executable(&agent).ok_or("not-found")?;
     let mut command = Command::new(&executable);
-    command.current_dir(cwd).args(chat_args(&agent, &model, &effort, session.as_deref()))
+    command.current_dir(cwd).args(chat_args(&agent, &model, &effort, session.as_deref(), allow_edits))
         .stdout(Stdio::piped()).stderr(Stdio::piped());
     #[cfg(windows)]
     {
@@ -352,7 +441,16 @@ fn chat(agent: Agent, cwd: String, model: String, effort: String, prompt: String
             None
         }
     };
-    let done = capture(command, input, CHAT_TIMEOUT, MAX_CHAT_OUTPUT)?;
+    let mut thinking = Thinking::default();
+    let mut connected = true;
+    let done = capture_progress(command, input, CHAT_TIMEOUT, MAX_CHAT_OUTPUT, Some(cancelled), |lines| {
+        let before = (thinking.text.len(), thinking.reply.len());
+        for line in lines.lines() { thinking.read(&agent, line); }
+        if connected && before != (thinking.text.len(), thinking.reply.len()) {
+            connected = progress.send(Progress { thinking: thinking.text.clone(), text: thinking.reply.clone() }).is_ok();
+        }
+    })?;
+    if cancelled.load(Ordering::SeqCst) { return Err("cancelled".into()); }
     if !done.success {
         return Err(chat_failure(&done.stdout, &done.stderr));
     }
@@ -365,11 +463,13 @@ fn valid_session(id: &str) -> bool {
 }
 
 /// Everything but the prompt. A session is only continued on the CLIs that report one, so never on Antigravity.
-fn chat_args(agent: &Agent, model: &str, effort: &str, session: Option<&str>) -> Vec<String> {
+/// `allow_edits`: a retry after the CLI refused an action; Claude may then change files without asking. Commands still need
+/// a yes. The other CLIs already work in a sandbox that allows writing in the project.
+fn chat_args(agent: &Agent, model: &str, effort: &str, session: Option<&str>, allow_edits: bool) -> Vec<String> {
     let reasoning = format!("model_reasoning_effort=\"{effort}\"");
     let args: Vec<&str> = match (agent, session) {
         (Agent::Claude, session) => {
-            let mut args = vec!["--print", "--output-format", "json", "--permission-mode", "default",
+            let mut args = vec!["--print", "--output-format", "stream-json", "--verbose", "--include-partial-messages", "--permission-mode", if allow_edits { "acceptEdits" } else { "default" },
                 "--permission-prompts", "none", "--model", model, "--effort", effort,
                 // The user's MCP servers add tens of thousands of tokens to every turn, and a chat turn does not use them.
                 "--strict-mcp-config"];
@@ -423,6 +523,7 @@ fn first_line(text: &str) -> Option<String> {
 #[serde(rename_all = "camelCase")]
 pub struct AgentReply {
     text: String,
+    thinking: String,
     tokens: Option<u64>,
     permission_denied: bool,
     session: Option<String>,
@@ -448,7 +549,9 @@ fn answer(agent: &Agent, output: &str) -> Option<AgentReply> {
             (text?, usage, false, session)
         }
         Agent::Claude | Agent::Gemini => {
-            let result: Value = serde_json::from_str(output).ok()?;
+            let result: Value = serde_json::from_str(output).ok().or_else(|| output.lines().rev()
+                .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+                .find(|event| event["type"] == "result"))?;
             if result["is_error"] == true || result["status"] == "ERROR" {
                 return None;
             }
@@ -464,7 +567,79 @@ fn answer(agent: &Agent, output: &str) -> Option<AgentReply> {
             .saturating_add(usage["cache_creation_input_tokens"].as_u64().unwrap_or(0)))
     });
     let session = session.filter(|id| valid_session(id));
-    (!text.trim().is_empty()).then_some(AgentReply { text, tokens, permission_denied, session })
+    let mut thinking = Thinking::default();
+    if matches!(agent, Agent::Gemini) { thinking.read(agent, output); }
+    else { for line in output.lines() { thinking.read(agent, line); } }
+    (!text.trim().is_empty()).then_some(AgentReply { text, thinking: thinking.text, tokens, permission_denied, session })
+}
+
+/// Only explicitly published thinking/reasoning text, never tool output, signatures or encrypted blocks.
+#[derive(Default)]
+struct Thinking {
+    text: String,
+    /// The answer as far as it has come (the current message of the turn), to show it while it is written.
+    reply: String,
+    streamed_message: bool,
+}
+
+impl Thinking {
+    fn append(&mut self, text: &str, separate: bool) {
+        const CAP: usize = 24_000;
+        let room = CAP.saturating_sub(self.text.len());
+        if room == 0 || text.is_empty() { return; }
+        let text = if separate && !self.text.is_empty() { format!("\n\n{text}") } else { text.to_owned() };
+        let mut end = text.len().min(room);
+        while !text.is_char_boundary(end) { end -= 1; }
+        self.text.push_str(&text[..end]);
+    }
+
+    fn append_reply(&mut self, text: &str) {
+        const CAP: usize = 60_000;
+        let room = CAP.saturating_sub(self.reply.len());
+        let mut end = text.len().min(room);
+        while !text.is_char_boundary(end) { end -= 1; }
+        self.reply.push_str(&text[..end]);
+    }
+
+    fn read(&mut self, agent: &Agent, line: &str) {
+        let Ok(event) = serde_json::from_str::<serde_json::Value>(line) else { return; };
+        match agent {
+            Agent::Codex if event["type"] == "item.completed" && event["item"]["type"] == "reasoning" => {
+                if let Some(text) = event["item"]["text"].as_str() { self.append(text, true); }
+            }
+            Agent::Codex if event["type"] == "item.completed" && event["item"]["type"] == "agent_message" => {
+                self.reply.clear();
+                if let Some(text) = event["item"]["text"].as_str() { self.append_reply(text); }
+            }
+            Agent::Claude if event["parent_tool_use_id"].is_null() => {
+                let part = &event["event"];
+                if part["type"] == "message_start" { self.streamed_message = false; self.reply.clear(); }
+                if part["type"] == "content_block_delta" && part["delta"]["type"] == "text_delta" {
+                    self.append_reply(part["delta"]["text"].as_str().unwrap_or(""));
+                }
+                if part["type"] == "content_block_start" && part["content_block"]["type"] == "thinking" {
+                    self.streamed_message = true;
+                    if !self.text.is_empty() { self.append("\n\n", false); }
+                    self.append(part["content_block"]["thinking"].as_str().unwrap_or(""), false);
+                }
+                if part["type"] == "content_block_delta" && part["delta"]["type"] == "thinking_delta" {
+                    self.streamed_message = true;
+                    self.append(part["delta"]["thinking"].as_str().unwrap_or(""), false);
+                }
+                if event["type"] == "assistant" && !self.streamed_message {
+                    if let Some(blocks) = event["message"]["content"].as_array() {
+                        for block in blocks.iter().filter(|b| b["type"] == "thinking") {
+                            self.append(block["thinking"].as_str().unwrap_or(""), true);
+                        }
+                    }
+                }
+            }
+            Agent::Gemini => {
+                if let Some(text) = event["thinking"].as_str().or_else(|| event["reasoning"].as_str()) { self.append(text, true); }
+            }
+            _ => {}
+        }
+    }
 }
 
 fn chat_executable(agent: &Agent) -> Option<PathBuf> {
@@ -538,6 +713,108 @@ mod tests {
     use std::ffi::OsString;
 
     #[test]
+    fn progress_waits_for_complete_lines_and_keeps_split_utf8() {
+        let pipe = Pipe { bytes: Mutex::new(Vec::new()), over: AtomicBool::new(false) };
+        let mut offset = 0;
+        let line = "{\"thinking\":\"ação\"}\n".as_bytes();
+        let split = line.iter().position(|b| *b == 0xc3).unwrap() + 1;
+        pipe.bytes.lock().unwrap().extend_from_slice(&line[..split]);
+        assert_eq!(new_lines(&pipe, &mut offset, false), "");
+        assert_eq!(offset, 0);
+        pipe.bytes.lock().unwrap().extend_from_slice(&line[split..]);
+        assert_eq!(new_lines(&pipe, &mut offset, false), String::from_utf8_lossy(line));
+        assert_eq!(new_lines(&pipe, &mut offset, false), "");
+        pipe.bytes.lock().unwrap().extend_from_slice(b"final");
+        assert_eq!(new_lines(&pipe, &mut offset, false), "");
+        assert_eq!(new_lines(&pipe, &mut offset, true), "final");
+        assert_eq!(new_lines(&pipe, &mut offset, true), "");
+    }
+
+    #[test]
+    fn claude_stream_keeps_result_and_thinking_without_snapshot_duplicates() {
+        let output = r#"{"type":"stream_event","event":{"type":"message_start"}}
+{"type":"stream_event","event":{"type":"content_block_start","content_block":{"type":"thinking","thinking":""}}}
+{"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"thinking_delta","thinking":"Checking "}}}
+{"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"thinking_delta","thinking":"the files"}}}
+{"type":"assistant","message":{"content":[{"type":"thinking","thinking":"Checking the files"},{"type":"text","text":"private tool output"}]}}
+{"type":"result","result":"Done","session_id":"session-1","usage":{"input_tokens":10,"output_tokens":2}}"#;
+        let reply = answer(&Agent::Claude, output).unwrap();
+        assert_eq!(reply.text, "Done");
+        assert_eq!(reply.thinking, "Checking the files");
+        assert_eq!(reply.session.as_deref(), Some("session-1"));
+        assert_eq!(reply.tokens, Some(12));
+        let snapshot = r#"{"type":"assistant","message":{"content":[{"type":"thinking","thinking":"Published thought"},{"type":"redacted_thinking","data":"secret"}]}}
+{"type":"result","result":"Done"}"#;
+        assert_eq!(answer(&Agent::Claude, snapshot).unwrap().thinking, "Published thought");
+    }
+
+    #[test]
+    fn codex_thinking_does_not_include_tools_or_duplicate_updates() {
+        let output = r#"{"type":"item.started","item":{"type":"reasoning","text":"Working"}}
+{"type":"item.updated","item":{"type":"reasoning","text":"Working on it"}}
+{"type":"item.completed","item":{"type":"reasoning","text":"Working on it"}}
+{"type":"item.completed","item":{"type":"command_execution","aggregated_output":"secret"}}
+{"type":"item.completed","item":{"type":"reasoning","text":"Checked"}}
+{"type":"item.completed","item":{"type":"agent_message","text":"Done"}}"#;
+        assert_eq!(answer(&Agent::Codex, output).unwrap().thinking, "Working on it\n\nChecked");
+        let mut thinking = Thinking::default();
+        thinking.append(&"🦀".repeat(10_000), false);
+        assert!(thinking.text.len() <= 24_000);
+        thinking.append("ignored", true);
+        assert_eq!(thinking.text.len(), 24_000);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn progress_receives_lines_before_the_process_exits_and_flushes_the_last_line() {
+        let exe = shim("progress", "echo first\r\nping -n 3 127.0.0.1 >nul\r\n<nul set /p =last");
+        let mut command = Command::new(exe);
+        command.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
+        crate::convert::hide_console(&mut command);
+        let start = Instant::now();
+        let mut events = Vec::new();
+        let result = capture_progress(command, None, Duration::from_secs(10), 1000, None, |line| events.push((start.elapsed(), line.to_owned()))).unwrap();
+        assert_eq!(events.first().unwrap().1.trim(), "first");
+        assert!(events.first().unwrap().0 < Duration::from_secs(1));
+        assert_eq!(events.last().unwrap().1, "last");
+        assert!(result.stdout.contains("first"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn cancellation_ends_a_waiting_cli_and_allows_the_next_capture() {
+        let exe = shim("cancel", "echo ready\r\nping -n 30 127.0.0.1 >nul");
+        let mut command = Command::new(exe);
+        command.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
+        crate::convert::hide_console(&mut command);
+        let cancelled = AtomicBool::new(false);
+        let start = Instant::now();
+        let result = capture_progress(command, None, Duration::from_secs(10), 1000, Some(&cancelled),
+            |_| cancelled.store(true, Ordering::SeqCst));
+        assert!(matches!(result, Err("cancelled")));
+        assert!(start.elapsed() < Duration::from_secs(4));
+        let next = shim("after-cancel", "echo next");
+        assert!(run(&next, &ARGS, Duration::from_secs(5), MAX_OUTPUT).unwrap().contains("next"));
+    }
+
+    #[test]
+    fn cancellation_targets_only_the_registered_turn() {
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let other = Arc::new(AtomicBool::new(false));
+        *ACTIVE_TURNS.lock().unwrap() = vec![("current-turn".into(), "c:/a".into(), cancelled.clone()), ("other-turn".into(), "c:/b".into(), other.clone())];
+        let turn = Turn("current-turn".into());
+        assert!(!agents_cancel("old-turn".into()));
+        assert!(!cancelled.load(Ordering::SeqCst));
+        assert!(agents_cancel("current-turn".into()));
+        assert!(cancelled.load(Ordering::SeqCst));
+        assert!(!other.load(Ordering::SeqCst));
+        drop(turn);
+        assert_eq!(ACTIVE_TURNS.lock().unwrap().len(), 1);
+        ACTIVE_TURNS.lock().unwrap().clear();
+        assert_eq!(folder_key("C:\\Dev\\App\\"), folder_key("c:/dev/app"));
+    }
+
+    #[test]
     fn extracts_structured_chat_replies_and_token_counts() {
         let codex = r#"{"type":"item.completed","item":{"type":"agent_message","text":"Done"}}
 {"type":"turn.completed","usage":{"input_tokens":10,"cached_input_tokens":4,"output_tokens":5}}"#;
@@ -577,19 +854,20 @@ mod tests {
 
     #[test]
     fn a_resumed_turn_keeps_the_sandbox_and_the_options_of_a_new_one() {
-        let new = chat_args(&Agent::Codex, "m", "low", None);
+        let new = chat_args(&Agent::Codex, "m", "low", None, false);
         assert!(new.windows(2).any(|pair| pair == ["--sandbox", "workspace-write"]));
-        let resumed = chat_args(&Agent::Codex, "m", "low", Some("id"));
+        let resumed = chat_args(&Agent::Codex, "m", "low", Some("id"), false);
         assert_eq!(&resumed[..2], ["exec", "resume"]);
         assert!(resumed.windows(2).any(|pair| pair == ["-c", "sandbox_mode=\"workspace-write\""]));
         assert_eq!(&resumed[resumed.len() - 2..], ["id", "-"]);
 
-        let claude = chat_args(&Agent::Claude, "m", "low", Some("id"));
+        let claude = chat_args(&Agent::Claude, "m", "low", Some("id"), false);
         assert!(claude.windows(2).any(|pair| pair == ["--resume", "id"]));
         assert!(claude.windows(2).any(|pair| pair == ["--permission-mode", "default"]));
         assert!(claude.contains(&"--strict-mcp-config".to_string()));
-        assert!(!chat_args(&Agent::Claude, "m", "low", None).contains(&"--resume".to_string()));
-        assert!(!chat_args(&Agent::Gemini, "m", "low", Some("id")).contains(&"id".to_string()));
+        assert!(!chat_args(&Agent::Claude, "m", "low", None, false).contains(&"--resume".to_string()));
+        assert!(chat_args(&Agent::Claude, "m", "low", None, true).windows(2).any(|pair| pair == ["--permission-mode", "acceptEdits"]));
+        assert!(!chat_args(&Agent::Gemini, "m", "low", Some("id"), false).contains(&"id".to_string()));
     }
 
     #[test]

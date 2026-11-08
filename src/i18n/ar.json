@@ -1670,5 +1670,12 @@
  "Chips zum Dekodieren": "شارات فك الترميز",
  "Ein kleiner Chip an Einträgen, die ein JWT, Unix-Zeit, Base64, eine UUID, JSON, eine Farbe oder ein Link mit Tracking sind. Alles bleibt auf dem Rechner.": "شارة صغيرة على العناصر التي تبدو JWT أو وقت Unix أو Base64 أو UUID أو JSON أو لونًا أو رابطًا فيه تتبّع. يبقى كل شيء على هذا الكمبيوتر.",
  "Vollständig lesen": "قراءة كاملة",
- "Die CLI meldet: {reason}": "تفيد CLI: {reason}"
+ "Die CLI meldet: {reason}": "تفيد CLI: {reason}",
+ "Denkt nach": "جارٍ التفكير",
+ "Gedankengang": "التفكير",
+ "Warten auf verfügbare Denkdetails der CLI.": "في انتظار تفاصيل التفكير التي توفرها واجهة CLI.",
+ "Ohne Ordner": "بدون مجلد",
+ "Im Chat öffnen": "فتح في الدردشة",
+ "Mit Bearbeitungsrechten wiederholen": "إعادة المحاولة مع إذن التعديل",
+ "In diesem Projekt arbeitet bereits ein Agent, oder es laufen schon vier": "هناك وكيل يعمل بالفعل في هذا المشروع، أو يعمل أربعة"
 }

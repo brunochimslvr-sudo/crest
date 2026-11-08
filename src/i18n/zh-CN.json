@@ -1670,5 +1670,12 @@
  "Chips zum Dekodieren": "解码标签",
  "Ein kleiner Chip an Einträgen, die ein JWT, Unix-Zeit, Base64, eine UUID, JSON, eine Farbe oder ein Link mit Tracking sind. Alles bleibt auf dem Rechner.": "在 JWT、Unix 时间、Base64、UUID、JSON、颜色或带跟踪参数的链接条目上显示一个小标签。所有数据都留在本机。",
  "Vollständig lesen": "阅读全文",
- "Die CLI meldet: {reason}": "CLI 返回：{reason}"
+ "Die CLI meldet: {reason}": "CLI 返回：{reason}",
+ "Denkt nach": "思考中",
+ "Gedankengang": "思考过程",
+ "Warten auf verfügbare Denkdetails der CLI.": "正在等待 CLI 提供思考详情。",
+ "Ohne Ordner": "无文件夹",
+ "Im Chat öffnen": "在聊天中打开",
+ "Mit Bearbeitungsrechten wiederholen": "允许编辑后重试",
+ "In diesem Projekt arbeitet bereits ein Agent, oder es laufen schon vier": "此项目已有代理在运行，或已有四个在运行"
 }

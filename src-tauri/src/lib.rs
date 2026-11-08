@@ -513,6 +513,9 @@ pub fn run() {
             capture::find::find_highlight,
             agents::agents_list,
             agents::agents_chat,
+            agents::agents_cancel,
+            agents::agents_projects_load,
+            agents::agents_projects_save,
             mic::mic_mute,
             sharing::sharing_hide,
             ];

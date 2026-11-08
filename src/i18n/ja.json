@@ -1670,5 +1670,12 @@
  "Chips zum Dekodieren": "デコード用チップ",
  "Ein kleiner Chip an Einträgen, die ein JWT, Unix-Zeit, Base64, eine UUID, JSON, eine Farbe oder ein Link mit Tracking sind. Alles bleibt auf dem Rechner.": "JWT、Unix 時間、Base64、UUID、JSON、色、トラッキング付きリンクと思われる項目に小さなチップを表示します。すべてこの PC 内で処理されます。",
  "Vollständig lesen": "全文を読む",
- "Die CLI meldet: {reason}": "CLI からの応答: {reason}"
+ "Die CLI meldet: {reason}": "CLI からの応答: {reason}",
+ "Denkt nach": "思考中",
+ "Gedankengang": "思考内容",
+ "Warten auf verfügbare Denkdetails der CLI.": "CLI が提供する思考の詳細を待っています。",
+ "Ohne Ordner": "フォルダなし",
+ "Im Chat öffnen": "チャットで開く",
+ "Mit Bearbeitungsrechten wiederholen": "編集を許可して再試行",
+ "In diesem Projekt arbeitet bereits ein Agent, oder es laufen schon vier": "このプロジェクトではすでにエージェントが実行中か、4つが実行中です"
 }

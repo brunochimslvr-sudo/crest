@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { MAX_SESSIONS, WAIT_GAP_MS, lastFolder, parseAgents, phaseOf, resumeCommand, spanParts, trackWaits, waitedMs, type AgentSession } from "./sessions.ts";
+import { MAX_SESSIONS, POLL, WAIT_GAP_MS, groupSessions, lastFolder, newlyWaiting, parseAgents, phaseOf, pollDelay, resumeCommand, spanParts, trackWaits, waitedMs, type AgentSession } from "./sessions.ts";
 
 const NOW = Date.UTC(2026, 10, 6, 12, 0, 0);
 const MIN = 60_000;
@@ -190,4 +190,41 @@ test("a span in days, hours and minutes", () => {
   assert.deepEqual(spanParts(61 * MIN), { d: 0, h: 1, m: 1 });
   assert.deepEqual(spanParts((26 * 60 + 5) * MIN), { d: 1, h: 2, m: 5 });
   assert.deepEqual(spanParts(-5 * MIN), { d: 0, h: 0, m: 0 });
+});
+
+const session = (key: string, phase: AgentSession["phase"], cwd: string): AgentSession => ({
+  key, title: key, cwd, kind: "interactive", startedAt: null, sessionId: null, state: null, status: null, waitingFor: null, phase,
+});
+
+test("polls quickly while looking at a busy list, slowly when everything is parked, and in between with the notch closed", () => {
+  const parked = [session("a", "idle", "/x"), session("b", "done", "/x")];
+  const busy = [session("a", "working", "/x")];
+  assert.equal(pollDelay([], true), POLL.idleMs);
+  assert.equal(pollDelay(parked, true), POLL.idleMs);
+  assert.equal(pollDelay(busy, true), POLL.liveMs);
+  assert.equal(pollDelay([session("w", "waiting", "/x")], true), POLL.liveMs);
+  assert.equal(pollDelay(busy, false), POLL.backgroundLiveMs);
+  assert.ok(POLL.liveMs < POLL.backgroundLiveMs && POLL.backgroundLiveMs < POLL.idleMs);
+});
+
+test("a session is news only when it begins to wait", () => {
+  const list = [session("a", "waiting", "/x"), session("b", "waiting", "/y"), session("c", "working", "/z")];
+  assert.deepEqual(newlyWaiting(new Set(), list).map((s) => s.key), ["a", "b"]);
+  assert.deepEqual(newlyWaiting(new Set(["a"]), list).map((s) => s.key), ["b"]);
+  assert.deepEqual(newlyWaiting(new Set(["a", "b"]), list), []);
+});
+
+test("groups the sessions by project in the order of the most urgent one, and sets the finished ones apart", () => {
+  const list = [
+    session("w", "waiting", "C:\\dev\\crest"),
+    session("k", "working", "C:\\dev\\other"),
+    session("f", "failed", "c:/dev/crest/"),
+    session("d", "done", "C:\\dev\\crest"),
+    session("s", "stopped", "C:\\dev\\old"),
+    session("n", "idle", ""),
+  ];
+  const { groups, finished } = groupSessions(list);
+  assert.deepEqual(groups.map((g) => [g.name, g.sessions.map((s) => s.key), g.waiting]), [["crest", ["w", "f"], 1], ["other", ["k"], 0], ["", ["n"], 0]]);
+  assert.deepEqual(finished.map((s) => s.key), ["d", "s"]);
+  assert.deepEqual(groupSessions([]), { groups: [], finished: [] });
 });
