@@ -483,7 +483,10 @@ fn chat_args(agent: &Agent, model: &str, effort: &str, session: Option<&str>, al
         // `exec resume` has no --sandbox option; the setting is the same one under its config name.
         (Agent::Codex, Some(id)) => vec!["exec", "resume", "--json", "--skip-git-repo-check", "--model", model,
             "-c", &reasoning, "-c", "sandbox_mode=\"workspace-write\"", id, "-"],
-        (Agent::Gemini, _) => vec!["--output-format", "json", "--model", model, "--effort", effort, "--sandbox"],
+        // The user's own settings.json may pick another provider (a "gemini" one asks for an API key, or a local proxy). A turn here
+        // wants the default backend with the models Crest lists, so that key is cleared for this run only; nothing is saved.
+        (Agent::Gemini, _) => vec!["--output-format", "json", "--model", model, "--effort", effort, "--sandbox",
+            "--settings", "{\"modelProvider\":\"\"}"],
     };
     args.into_iter().map(str::to_owned).collect()
 }
@@ -868,6 +871,12 @@ mod tests {
         assert!(!chat_args(&Agent::Claude, "m", "low", None, false).contains(&"--resume".to_string()));
         assert!(chat_args(&Agent::Claude, "m", "low", None, true).windows(2).any(|pair| pair == ["--permission-mode", "acceptEdits"]));
         assert!(!chat_args(&Agent::Gemini, "m", "low", Some("id"), false).contains(&"id".to_string()));
+    }
+
+    #[test]
+    fn antigravity_ignores_the_provider_the_users_settings_pick() {
+        let args = chat_args(&Agent::Gemini, "m", "low", None, false);
+        assert!(args.windows(2).any(|pair| pair == ["--settings", "{\"modelProvider\":\"\"}"]));
     }
 
     #[test]
