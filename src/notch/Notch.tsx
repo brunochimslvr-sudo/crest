@@ -129,12 +129,20 @@ export function Notch() {
   useLayoutEffect(() => {
     if (status === "open" && prevStatus.current !== "open") {
       const resumed = Date.now() - closedAt.current < RESUME_MS;
-      const hovered = Date.now() - pointed.current.at < POINTED_MS ? pointed.current.tool : null;
+      const startTab = settings.get().startTab;
+      const home = startTab && visible.some((t) => t.id === startTab) ? startTab : null;
+      const pointedTool = Date.now() - pointed.current.at < POINTED_MS ? pointed.current.tool : null;
+      // The quota rings sit in the middle of the closed row, so with a start tool chosen the pointer crossing them does not decide:
+      // a click on them still opens AI usage.
+      const hovered = home && pointedTool === "usage" ? null : pointedTool;
       const target = trayTab.current ?? takeOpenTarget() ?? hovered;
+      const liveTool = live.id && visible.some((t) => t.id === live.id) ? live.id : null;
+      // Music is the one activity that only plays in the background: it does not outrank the start tool.
+      const landing = liveTool && !(liveTool === "media" && home) ? liveTool : home;
       if (target) navigate(target);
       // A fresh install opens on the setup until it is finished or skipped.
       else if (!settings.get().setup.done) navigate(setupTab.id);
-      else if (!resumed && live.id && visible.some((t) => t.id === live.id)) navigate(live.id);
+      else if (!resumed && landing) navigate(landing);
       trayTab.current = null;
     }
     if (status !== "open" && prevStatus.current === "open") closedAt.current = Date.now();

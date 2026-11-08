@@ -1,5 +1,6 @@
 {
  "Der Agent wollte einen Befehl ausführen, den die CLI abgelehnt hat": "The agent wanted to run a command, which the CLI refused",
+ "Öffnet auf": "Opens on",
  "Unterhaltung": "Conversation",
  "Sitzungen": "Sessions",
  "Projekte": "Projects",
@@ -276,6 +277,7 @@
  "Wer den Schlüssel löscht, löscht auch Verlauf und geladene Daten dieses Kontos.": "Deleting the key also deletes this account's history and loaded data.",
  "Zu wenig Arbeitsspeicher": "Not enough memory",
  "Zuerst einen Text kopieren. Die Schnellaktionen arbeiten mit der Zwischenablage.": "Copy some text first. The quick actions work on the clipboard.",
+ "Zuletzt genutzt": "Last used",
  "Zur Ablage hinzufügen": "Add to Shelf",
  "Immer": "Always",
  "Immer oben": "Always on top",

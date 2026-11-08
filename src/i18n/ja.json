@@ -1,5 +1,6 @@
 {
  "Der Agent wollte einen Befehl ausführen, den die CLI abgelehnt hat": "エージェントがコマンドを実行しようとしましたが、CLI に拒否されました",
+ "Öffnet auf": "開く画面",
  "Unterhaltung": "会話",
  "Sitzungen": "セッション",
  "Projekte": "プロジェクト",
@@ -276,6 +277,7 @@
  "Wer den Schlüssel löscht, löscht auch Verlauf und geladene Daten dieses Kontos.": "キーを削除すると、このアカウントの履歴と読み込み済みのデータも削除されます。",
  "Zu wenig Arbeitsspeicher": "メモリが足りません",
  "Zuerst einen Text kopieren. Die Schnellaktionen arbeiten mit der Zwischenablage.": "先にテキストをコピーしてください。クイック操作はクリップボードの内容に対して働きます。",
+ "Zuletzt genutzt": "最後に使ったもの",
  "Zur Ablage hinzufügen": "シェルフに追加",
  "Immer": "常に",
  "Immer oben": "常に最前面",

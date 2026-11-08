@@ -633,8 +633,19 @@ function Ask() {
 /** Open on hover or click, and the hover delay (also in the first-run setup). */
 export function OpenRows() {
   const s = settings.use();
+  // The tools in the tool bar, by name: the notch opens on the one picked here unless something else decides (src/notch/Notch.tsx).
+  const starts = [
+    { value: "", label: t("Zuletzt genutzt") },
+    ...s.tools.filter((tool) => tool.enabled).flatMap((tool) => {
+      const tab = findTab(tool.id);
+      return tab ? [{ value: tool.id, label: t(tab.label) }] : [];
+    }),
+  ];
   return (
     <>
+      <Row label={t("Öffnet auf")}>
+        <Select width="w-44" value={starts.some((o) => o.value === s.startTab) ? s.startTab : ""} onChange={(startTab) => updateSettings({ startTab })} options={starts} />
+      </Row>
       <Row label={t("Öffnen")}>
         <Segmented
           id="open-mode"

@@ -1,5 +1,6 @@
 {
  "Der Agent wollte einen Befehl ausführen, den die CLI abgelehnt hat": "代理想运行一条命令，但 CLI 拒绝了",
+ "Öffnet auf": "打开时显示",
  "Unterhaltung": "对话",
  "Sitzungen": "会话",
  "Projekte": "项目",
@@ -276,6 +277,7 @@
  "Wer den Schlüssel löscht, löscht auch Verlauf und geladene Daten dieses Kontos.": "删除密钥时，该账户的历史记录和已加载的数据也会一并删除。",
  "Zu wenig Arbeitsspeicher": "内存不足",
  "Zuerst einen Text kopieren. Die Schnellaktionen arbeiten mit der Zwischenablage.": "请先复制一段文字。快捷操作会处理剪贴板中的内容。",
+ "Zuletzt genutzt": "上次使用的",
  "Zur Ablage hinzufügen": "添加到暂存区",
  "Immer": "始终",
  "Immer oben": "始终置顶",

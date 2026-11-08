@@ -1,5 +1,6 @@
 {
  "Der Agent wollte einen Befehl ausführen, den die CLI abgelehnt hat": "L'agent voulait exécuter une commande, que la CLI a refusée",
+ "Öffnet auf": "S'ouvre sur",
  "Unterhaltung": "Conversation",
  "Sitzungen": "Sessions",
  "Projekte": "Projets",
@@ -276,6 +277,7 @@
  "Wer den Schlüssel löscht, löscht auch Verlauf und geladene Daten dieses Kontos.": "Supprimer la clé supprime aussi l'historique et les données chargées de ce compte.",
  "Zu wenig Arbeitsspeicher": "Mémoire insuffisante",
  "Zuerst einen Text kopieren. Die Schnellaktionen arbeiten mit der Zwischenablage.": "Copiez d'abord un texte. Les actions rapides utilisent le presse-papiers.",
+ "Zuletzt genutzt": "Dernier utilisé",
  "Zur Ablage hinzufügen": "Ajouter à l'étagère",
  "Immer": "Toujours",
  "Immer oben": "Toujours au premier plan",

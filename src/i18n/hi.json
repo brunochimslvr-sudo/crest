@@ -1,5 +1,6 @@
 {
  "Der Agent wollte einen Befehl ausführen, den die CLI abgelehnt hat": "एजेंट एक कमांड चलाना चाहता था, लेकिन CLI ने उसे अस्वीकार कर दिया",
+ "Öffnet auf": "इस पर खुलता है",
  "Unterhaltung": "बातचीत",
  "Sitzungen": "सत्र",
  "Projekte": "प्रोजेक्ट",
@@ -276,6 +277,7 @@
  "Wer den Schlüssel löscht, löscht auch Verlauf und geladene Daten dieses Kontos.": "कुंजी हटाने पर इस खाते का इतिहास और लोड किया गया डेटा भी हट जाता है।",
  "Zu wenig Arbeitsspeicher": "मेमोरी पर्याप्त नहीं है",
  "Zuerst einen Text kopieren. Die Schnellaktionen arbeiten mit der Zwischenablage.": "पहले कोई टेक्स्ट कॉपी करें। त्वरित क्रियाएँ क्लिपबोर्ड पर काम करती हैं।",
+ "Zuletzt genutzt": "आखिरी बार उपयोग किया गया",
  "Zur Ablage hinzufügen": "शेल्फ़ में जोड़ें",
  "Immer": "हमेशा",
  "Immer oben": "हमेशा ऊपर",

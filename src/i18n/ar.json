@@ -1,5 +1,6 @@
 {
  "Der Agent wollte einen Befehl ausführen, den die CLI abgelehnt hat": "أراد الوكيل تشغيل أمر، لكن واجهة CLI رفضته",
+ "Öffnet auf": "يفتح على",
  "Unterhaltung": "محادثة",
  "Sitzungen": "الجلسات",
  "Projekte": "المشاريع",
@@ -276,6 +277,7 @@
  "Wer den Schlüssel löscht, löscht auch Verlauf und geladene Daten dieses Kontos.": "حذف المفتاح يحذف أيضًا سجل هذا الحساب وبياناته المحمّلة.",
  "Zu wenig Arbeitsspeicher": "الذاكرة غير كافية",
  "Zuerst einen Text kopieren. Die Schnellaktionen arbeiten mit der Zwischenablage.": "انسخ نصًا أولًا. تعمل الإجراءات السريعة على الحافظة.",
+ "Zuletzt genutzt": "آخر ما استُخدم",
  "Zur Ablage hinzufügen": "إضافة إلى الرف",
  "Immer": "دائمًا",
  "Immer oben": "دائمًا في المقدمة",

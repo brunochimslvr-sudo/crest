@@ -1,5 +1,6 @@
 {
  "Der Agent wollte einen Befehl ausführen, den die CLI abgelehnt hat": "Агент хотел выполнить команду, но CLI её отклонил",
+ "Öffnet auf": "Открывается на",
  "Unterhaltung": "Диалог",
  "Sitzungen": "Сеансы",
  "Projekte": "Проекты",
@@ -276,6 +277,7 @@
  "Wer den Schlüssel löscht, löscht auch Verlauf und geladene Daten dieses Kontos.": "При удалении ключа также удаляются история и загруженные данные этого счёта.",
  "Zu wenig Arbeitsspeicher": "Недостаточно памяти",
  "Zuerst einen Text kopieren. Die Schnellaktionen arbeiten mit der Zwischenablage.": "Сначала скопируйте текст. Быстрые действия работают с буфером обмена.",
+ "Zuletzt genutzt": "Последний использованный",
  "Zur Ablage hinzufügen": "Добавить на полку",
  "Immer": "Всегда",
  "Immer oben": "Поверх всех окон",

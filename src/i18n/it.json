@@ -1,5 +1,6 @@
 {
  "Der Agent wollte einen Befehl ausführen, den die CLI abgelehnt hat": "L'agente voleva eseguire un comando, ma la CLI l'ha rifiutato",
+ "Öffnet auf": "Si apre su",
  "Unterhaltung": "Conversazione",
  "Sitzungen": "Sessioni",
  "Projekte": "Progetti",
@@ -276,6 +277,7 @@
  "Wer den Schlüssel löscht, löscht auch Verlauf und geladene Daten dieses Kontos.": "Eliminando la chiave si cancellano anche lo storico e i dati caricati di questo conto.",
  "Zu wenig Arbeitsspeicher": "Memoria insufficiente",
  "Zuerst einen Text kopieren. Die Schnellaktionen arbeiten mit der Zwischenablage.": "Copia prima un testo. Le azioni rapide lavorano con gli appunti.",
+ "Zuletzt genutzt": "Ultimo usato",
  "Zur Ablage hinzufügen": "Aggiungi al ripiano",
  "Immer": "Sempre",
  "Immer oben": "Sempre in primo piano",

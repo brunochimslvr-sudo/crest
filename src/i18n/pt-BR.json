@@ -1,5 +1,6 @@
 {
  "Der Agent wollte einen Befehl ausführen, den die CLI abgelehnt hat": "O agente quis executar um comando, mas a CLI o recusou",
+ "Öffnet auf": "Abrir em",
  "Unterhaltung": "Conversa",
  "Sitzungen": "Sessões",
  "Projekte": "Projetos",
@@ -276,6 +277,7 @@
  "Wer den Schlüssel löscht, löscht auch Verlauf und geladene Daten dieses Kontos.": "Excluir a chave também exclui o histórico e os dados carregados desta conta.",
  "Zu wenig Arbeitsspeicher": "Memória insuficiente",
  "Zuerst einen Text kopieren. Die Schnellaktionen arbeiten mit der Zwischenablage.": "Copie um texto primeiro. As ações rápidas trabalham com a área de transferência.",
+ "Zuletzt genutzt": "Último usado",
  "Zur Ablage hinzufügen": "Adicionar à prateleira",
  "Immer": "Sempre",
  "Immer oben": "Sempre visível",

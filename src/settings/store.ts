@@ -33,6 +33,12 @@ export interface Settings {
   /** Open on hover or only on click. */
   openMode: "hover" | "click";
   hoverDelay: "fast" | "normal" | "patient";
+  /**
+   * The tool the notch opens on when nothing else decides (a tray entry, a clicked notice, the part of the closed row under the pointer,
+   * a timer or call): its id, or "" for the one used last. Music playing in the background does not decide either. A tool that is not in
+   * the tool bar counts as "".
+   */
+  startTab: string;
   /** Order = order in the tool bar. Installed plugins are tools `plugin:<id>` (src/features/plugins). */
   tools: { id: string; enabled: boolean }[];
   /** Portfolio: Trading 212 account, and the base currency ("" = not chosen yet, see features/trading/base.ts). */
@@ -160,6 +166,7 @@ export interface Settings {
 const defaults: Settings = {
   openMode: "hover",
   hoverDelay: "normal",
+  startTab: "agents",
   tools: TOOL_IDS.map((id) => ({ id, enabled: !DEFAULT_OFF.has(id) })),
   trading: { env: "live", base: "" },
   usage: { claude: true, codex: true, gemini: true, cursor: false, openrouter: false, deepseek: false, zai: false },
@@ -274,6 +281,8 @@ function migrate({ language: _old, ...s }: Settings & { language?: unknown }): S
     // The old `language` was forced to English, never a choice: those settings start from the system language.
     lang: s.lang === "system" || isLanguage(s.lang) ? s.lang : "system",
     tools,
+    // Saved before the field existed: the default. Anything that is not a string would never match a tool, so it reads as "last used".
+    startTab: s.startTab === undefined ? defaults.startTab : typeof s.startTab === "string" ? s.startTab : "",
     trading: { ...defaults.trading, ...s.trading },
     usage: { ...defaults.usage, ...s.usage },
     aiUsage: normalizeCards(s.aiUsage),
