@@ -1677,5 +1677,13 @@
  "Ohne Ordner": "بدون مجلد",
  "Im Chat öffnen": "فتح في الدردشة",
  "Mit Bearbeitungsrechten wiederholen": "إعادة المحاولة مع إذن التعديل",
- "In diesem Projekt arbeitet bereits ein Agent, oder es laufen schon vier": "هناك وكيل يعمل بالفعل في هذا المشروع، أو يعمل أربعة"
+ "In diesem Projekt arbeitet bereits ein Agent, oder es laufen schon vier": "هناك وكيل يعمل بالفعل في هذا المشروع، أو يعمل أربعة",
+ "Nachricht kopieren": "نسخ الرسالة",
+ "Projekt entfernen": "إزالة المشروع",
+ "Verlauf löschen?": "حذف السجل؟",
+ "Neue Unterhaltung": "محادثة جديدة",
+ "In der Warteschlange": "في قائمة الانتظار",
+ "Aus der Warteschlange entfernen": "إزالة من قائمة الانتظار",
+ "In die Warteschlange stellen": "إضافة إلى قائمة الانتظار",
+ "Die Nachricht ist zu lang. Kürze sie oder teile sie auf": "الرسالة طويلة جدًا. اختصرها أو قسّمها"
 }

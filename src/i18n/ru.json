@@ -1677,5 +1677,13 @@
  "Ohne Ordner": "Без папки",
  "Im Chat öffnen": "Открыть в чате",
  "Mit Bearbeitungsrechten wiederholen": "Повторить с правом на изменение",
- "In diesem Projekt arbeitet bereits ein Agent, oder es laufen schon vier": "В этом проекте уже работает агент, или запущено четыре"
+ "In diesem Projekt arbeitet bereits ein Agent, oder es laufen schon vier": "В этом проекте уже работает агент, или запущено четыре",
+ "Nachricht kopieren": "Копировать сообщение",
+ "Projekt entfernen": "Убрать проект",
+ "Verlauf löschen?": "Удалить историю?",
+ "Neue Unterhaltung": "Новый разговор",
+ "In der Warteschlange": "В очереди",
+ "Aus der Warteschlange entfernen": "Убрать из очереди",
+ "In die Warteschlange stellen": "Поставить в очередь",
+ "Die Nachricht ist zu lang. Kürze sie oder teile sie auf": "Сообщение слишком длинное. Сократите его или разделите"
 }

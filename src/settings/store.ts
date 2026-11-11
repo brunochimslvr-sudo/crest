@@ -157,10 +157,13 @@ export interface Settings {
   clipChips: boolean;
 }
 
+/** The tools a fresh install starts with; the others are one switch away in Settings. */
+const STARTER_TOOLS: ReadonlySet<string> = new Set(["agents", "ask", "media", "clipboard"]);
+
 const defaults: Settings = {
   openMode: "hover",
   hoverDelay: "normal",
-  tools: TOOL_IDS.map((id) => ({ id, enabled: !DEFAULT_OFF.has(id) })),
+  tools: TOOL_IDS.map((id) => ({ id, enabled: STARTER_TOOLS.has(id) })),
   trading: { env: "live", base: "" },
   usage: { claude: true, codex: true, gemini: true, cursor: false, openrouter: false, deepseek: false, zai: false },
   aiUsage: USAGE_CARDS_DEFAULTS,
@@ -215,7 +218,8 @@ const defaults: Settings = {
   capture: { shotTarget: "all", source: null, fps: 30, mic: false, system: true, shelf: false, border: true },
   recorder: { mic: true, system: true, noted: false },
   camera: { deviceId: "", mirror: true },
-  setup: { done: false },
+  // No first-run page: Crest opens straight on its tools.
+  setup: { done: true },
   clipChips: true,
 };
 

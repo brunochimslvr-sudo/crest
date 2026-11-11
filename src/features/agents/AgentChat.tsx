@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ArrowsOutSimple, ArrowUp, CaretRight, CircleNotch, FolderOpen, Plus, Square, X } from "@phosphor-icons/react";
+import { ArrowsOutSimple, ArrowUp, CaretRight, CircleNotch, FolderOpen, NotePencil, Plus, Square, X } from "@phosphor-icons/react";
 import { fade, pulse, spin, springs } from "../../design/motion";
 import { t } from "../../i18n";
 import { createStore } from "../../lib/store";
@@ -11,7 +11,8 @@ import { isNative } from "../../platform/native";
 import { BrandLogo, brandColor } from "../../ui/brands";
 import { usage, useUsageViewer } from "../usage/store";
 import { formatTokens } from "../usage/format";
-import { AGENTS, agentIds, effortIds, modelsOf, planTurn, restoreProjects, shortModel, tokensByModel, type Agent, type Effort, type Message, type Project, type Turn } from "./chat";
+import { AGENTS, MAX_DRAFT, MAX_QUEUE, agentIds, effortIds, modelsOf, planTurn, restoreProjects, shortModel, tokensByModel, type Agent, type Effort, type Message, type Project, type Turn } from "./chat";
+import { CopyButton, Markdown } from "./Markdown";
 
 /** Where the history used to live; read once to carry it over to the file in the app's data folder. */
 const LEGACY_KEY = "crest.agent-projects.v1";
@@ -21,6 +22,12 @@ const EFFORTS: Record<Effort, { name: string; dot: string }> = {
   low: { name: "Low", dot: "bg-green" },
   medium: { name: "Medium", dot: "bg-yellow" },
   high: { name: "High", dot: "bg-red" },
+};
+/** The dot of a tab that finished behind the user's back, and what it says. */
+const MARKS: Record<"done" | "needs" | "failed", { dot: string; label: string }> = {
+  done: { dot: "bg-green", label: "Fertig" },
+  needs: { dot: "bg-orange", label: "Braucht dich" },
+  failed: { dot: "bg-red", label: "Fehlgeschlagen" },
 };
 /** A message longer than this is cut short in the log, with a button for all of it. */
 const LONG_CHARS = 480;
@@ -55,6 +62,11 @@ const selected = createStore(0);
 /** One agent per project can work at a time, and projects work side by side. */
 const runs = createStore<Record<string, Run>>({});
 const errors = createStore<Record<string, string>>({});
+/** Messages sent while the agent of that project was still working; each one goes out as its own turn, in order. */
+const queue = createStore<Record<string, string[]>>({});
+/** What a project that was not on screen finished with: it answered, it needs the user, or it failed. Cleared when it is opened. */
+type Unread = "done" | "needs" | "failed";
+const unread = createStore<Record<string, Unread>>({});
 
 // The whole history is written as one piece, so a draft is saved after a pause in typing, and when the window goes away.
 let saveTimer = 0;
@@ -125,6 +137,29 @@ function newProject(cwd: string, agent: Agent): Project {
   return { cwd, agent, model: modelsOf(agent)[0], effort: "medium", draft: "", messages: [], sessions: {} };
 }
 
+/** Takes a project out of the list, with its history. Not while an agent works in it. */
+function closeProject(cwd: string) {
+  if (runs.get()[cwd]) return;
+  const index = projects.get().findIndex((item) => item.cwd === cwd);
+  if (index === -1) return;
+  update((all) => all.filter((item) => item.cwd !== cwd), true);
+  const dropped = ({ [cwd]: _gone, ...rest }: Record<string, unknown>) => rest;
+  queue.set((all) => dropped(all) as Record<string, string[]>);
+  unread.set((all) => dropped(all) as Record<string, Unread>);
+  errors.set((all) => dropped(all) as Record<string, string>);
+  // The tab the user was on stays; one before it moves everything down by one.
+  const current = selected.get();
+  selected.set(Math.max(0, Math.min(current > index ? current - 1 : current, projects.get().length - 1)));
+}
+
+/** A fresh conversation in the same project: the history and the sessions of the agents go, the folder, agent and model stay. */
+function newConversation(cwd: string) {
+  if (runs.get()[cwd]) return;
+  queue.set(({ [cwd]: _gone, ...rest }) => rest);
+  errors.set((all) => ({ ...all, [cwd]: "" }));
+  edit(cwd, { messages: [], sessions: {} }, true);
+}
+
 /** Shows the chat of a project, starting it when it is new: for a session of the list that is worth talking to. */
 export function openProject(cwd: string) {
   const index = projects.get().findIndex((item) => sameFolder(item.cwd, cwd));
@@ -146,6 +181,7 @@ const errorText: Record<string, string> = {
   "no-response": "Der Agent hat keine Antwort zurückgegeben",
   "invalid-input": "Prüfe Modell, Aufwand und Nachrichtenlänge",
   busy: "In diesem Projekt arbeitet bereits ein Agent, oder es laufen schon vier",
+  "too-long": "Die Nachricht ist zu lang. Kürze sie oder teile sie auf",
 };
 
 /** What the page shows for a code from the backend; `cli:` carries what the CLI itself said. */
@@ -155,12 +191,57 @@ function failure(error: unknown): string {
   return t(errorText[code] ?? "Die CLI konnte die Anfrage nicht abschließen");
 }
 
-/** `retry`: the same turn again after the CLI refused an action, now allowed to edit files. It leaves the draft alone. */
-async function send(project: Project, retry?: { text: string }) {
+/** True while the chat is on screen, so a project that finishes behind another tab, or behind another tool, is marked. */
+let onScreen = false;
+
+/** Marks a finished project the user is not looking at. */
+function markUnread(cwd: string, mark: Unread) {
+  if (onScreen && projects.get()[selected.get()]?.cwd === cwd) return;
+  // Something that needs the user is not covered by a later plain "done".
+  unread.set((all) => ({ ...all, [cwd]: all[cwd] === "failed" || (all[cwd] === "needs" && mark === "done") ? all[cwd] : mark }));
+}
+
+/** Puts what was waiting behind a turn that did not finish back into the box, after what is already there. */
+function restoreQueue(cwd: string) {
+  const waiting = queue.get()[cwd] ?? [];
+  if (!waiting.length) return;
+  queue.set(({ [cwd]: _gone, ...rest }) => rest);
+  edit(cwd, (current) => ({ draft: [current.draft, ...waiting].filter(Boolean).join("\n\n") }), true);
+}
+
+/** After a turn that went well: the next message that was waiting goes out. */
+function startNext(cwd: string) {
+  const [next, ...rest] = queue.get()[cwd] ?? [];
+  if (!next) return;
+  queue.set((all) => ({ ...all, [cwd]: rest }));
+  const project = projects.get().find((item) => item.cwd === cwd);
+  if (project) void send(project, { text: next, allowEdits: false });
+}
+
+/** The box's text goes out now, or behind the turn that is running. */
+function submit(project: Project) {
+  const text = project.draft.trim();
+  if (!text || !isNative) return;
+  if (!runs.get()[project.cwd]) return void send(project);
+  if (text.length > MAX_DRAFT || (queue.get()[project.cwd]?.length ?? 0) >= MAX_QUEUE) return;
+  queue.set((all) => ({ ...all, [project.cwd]: [...(all[project.cwd] ?? []), text] }));
+  edit(project.cwd, { draft: "" }, true);
+}
+
+/**
+ * `retry`: a turn given as text instead of the box. By default it is the same turn again after the CLI refused an
+ * action, now allowed to edit files, and it leaves the draft alone. `allowEdits: false` is a message that was waiting.
+ */
+async function send(project: Project, retry?: { text: string; allowEdits?: boolean }) {
   const text = (retry?.text ?? project.draft).trim();
   const { cwd, agent, model, effort, messages, sessions } = project;
   if (!isNative || runs.get()[cwd] || !text) return;
-  const allowEdits = !!retry;
+  if (text.length > MAX_DRAFT) {
+    errors.set((all) => ({ ...all, [cwd]: failure("too-long") }));
+    return;
+  }
+  const queued = retry?.allowEdits === false;
+  const allowEdits = !!retry && !queued;
   const requestId = crypto.randomUUID();
   const show = (part: Partial<Run>) => runs.set((all) => ({ ...all, [cwd]: { text, thinking: "", reply: "", agent, model, requestId, ...part } }));
   if (!retry) edit(cwd, { draft: "" }, true);
@@ -180,6 +261,7 @@ async function send(project: Project, retry?: { text: string }) {
     }
   };
   errors.set((all) => ({ ...all, [cwd]: "" }));
+  let finished: Unread | null = null;
   try {
     let reply: AgentReply;
     try {
@@ -197,19 +279,29 @@ async function send(project: Project, retry?: { text: string }) {
       messages: [...current.messages, ...turn].slice(-80),
       sessions: { ...current.sessions, [agent]: reply.session ?? undefined },
     }), true);
+    finished = reply.permissionDenied ? "needs" : "done";
   } catch (error) {
     if (!retry) edit(cwd, (current) => ({ draft: current.draft || text }), true);
+    // A message that was waiting is not lost either; it goes back to the box.
+    else if (queued) edit(cwd, (current) => ({ draft: [current.draft, text].filter(Boolean).join("\n\n") }), true);
+    // What is still waiting does not go out after a turn that stopped: back to the box too.
+    restoreQueue(cwd);
     if (String(error) === "cancelled") {
-      // The CLI may have received the prompt before cancellation. Rebuild context next time.
-      edit(cwd, (current) => ({ sessions: { ...current.sessions, [agent]: undefined } }), true);
+      // The CLI keeps its conversation, so it stays: if the CLI never saw the prompt, the next turn simply goes on from
+      // the last answer, and if the session cannot be continued the "session-lost" path above rebuilds it from the handoff.
       return;
     }
     // A conversation that failed to continue must not be tried again.
     if (String(error) === "session-lost") edit(cwd, (current) => ({ sessions: { ...current.sessions, [agent]: undefined } }), true);
     errors.set((all) => ({ ...all, [cwd]: failure(error) }));
+    finished = "failed";
   } finally {
     runs.set(({ [cwd]: _done, ...rest }) => rest);
   }
+  if (finished) markUnread(cwd, finished);
+  if (finished === "done") startNext(cwd);
+  // The agent was refused something and waits for the user: what was queued behind it is theirs to decide on.
+  else if (finished === "needs") restoreQueue(cwd);
 }
 
 async function cancel(requestId: string) {
@@ -235,11 +327,30 @@ export function AgentChat() {
   const [adding, setAdding] = useState(false);
   const [path, setPath] = useState("");
   const [reading, setReading] = useState<Message | null>(null);
+  const marks = unread.use();
+  const waiting = queue.use();
+  const lineup = project ? waiting[project.cwd] ?? [] : [];
   const bottom = useRef<HTMLDivElement>(null);
+  /** The log follows the reply while the user is at its end, and leaves them alone once they scroll up to read. */
+  const follow = useRef(true);
   const reduced = useReducedMotion();
   const dockId = useId();
-  useEffect(() => { bottom.current?.scrollIntoView({ block: "nearest" }); }, [index, project?.messages.length, active?.reply.length, active?.thinking.length]);
+  useEffect(() => { follow.current = true; }, [index]);
+  useEffect(() => { if (follow.current) bottom.current?.scrollIntoView({ block: "nearest" }); }, [index, project?.messages.length, active?.reply.length, active?.thinking.length, lineup.length]);
   useEffect(() => setReading(null), [index]);
+  useEffect(() => {
+    onScreen = true;
+    return () => { onScreen = false; };
+  }, []);
+  // What a tab finished with is seen once its project is the one on screen.
+  useEffect(() => {
+    if (project && marks[project.cwd]) unread.set(({ [project.cwd]: _seen, ...rest }) => rest);
+  }, [project?.cwd, marks]);
+
+  function submitNow(next: Project) {
+    follow.current = true;
+    submit(next);
+  }
 
   function add(event: FormEvent) {
     event.preventDefault();
@@ -247,7 +358,7 @@ export function AgentChat() {
     if (!cwd) return;
     const existing = items.findIndex((item) => item.cwd.toLowerCase() === cwd.toLowerCase());
     if (existing === -1) {
-      update((all) => [...all, newProject(cwd, "codex")], true);
+      update((all) => [...all, newProject(cwd, "claude")], true);
     }
     selected.set(existing === -1 ? items.length : existing);
     setPath("");
@@ -267,11 +378,16 @@ export function AgentChat() {
       <HeaderLead>
         <div className="flex min-w-0 items-baseline gap-3" role="group" aria-label={t("Projekte")}>
           {items.map(({ cwd }, i) => (
-            <button key={cwd} type="button" title={cwd} aria-pressed={i === index} onClick={() => selected.set(i)}
-              className={`${tab} flex max-w-28 shrink-0 items-center gap-1 text-label-2 aria-pressed:font-semibold aria-pressed:text-label`}>
-              <span className="truncate">{folderName(cwd)}</span>
-              {turns[cwd] && <span className="size-1.5 shrink-0 rounded-full bg-link" role="img" aria-label={t("Arbeitet")} />}
-            </button>
+            <span key={cwd} className="flex shrink-0 items-center gap-0.5">
+              <button type="button" title={cwd} aria-pressed={i === index} onClick={() => selected.set(i)}
+                className={`${tab} flex max-w-28 shrink-0 items-center gap-1 text-label-2 aria-pressed:font-semibold aria-pressed:text-label`}>
+                <span className="truncate">{folderName(cwd)}</span>
+                {turns[cwd]
+                  ? <span className="size-1.5 shrink-0 rounded-full bg-link" role="img" aria-label={t("Arbeitet")} />
+                  : marks[cwd] && <span className={`size-1.5 shrink-0 rounded-full ${MARKS[marks[cwd]].dot}`} role="img" aria-label={t(MARKS[marks[cwd]].label)} />}
+              </button>
+              {i === index && <ConfirmButton icon={X} label={t("Projekt entfernen")} confirm={t("Verlauf löschen?")} disabled={!!turns[cwd]} onConfirm={() => closeProject(cwd)} />}
+            </span>
           ))}
           <button type="button" aria-label={t("Projekt hinzufügen")} title={t("Projekt hinzufügen")} aria-pressed={adding} onClick={() => setAdding(!adding)}
             className={`${tab} shrink-0 self-center text-label-2 aria-pressed:text-label`}><Plus size={13} weight="bold" /></button>
@@ -289,7 +405,11 @@ export function AgentChat() {
       )}
       {project && (
         <>
-          <div className="min-h-0 flex-1 overflow-y-auto px-1 [scrollbar-width:none]" role="log" aria-label={t("Unterhaltung")} aria-busy={working}>
+          <div className="min-h-0 flex-1 overflow-y-auto px-1 [scrollbar-width:none]" role="log" aria-label={t("Unterhaltung")} aria-busy={working}
+            onScroll={(event) => {
+              const log = event.currentTarget;
+              follow.current = log.scrollHeight - log.scrollTop - log.clientHeight < 48;
+            }}>
             <AnimatePresence initial={false} mode="wait">
             <motion.div key={project.cwd} initial={{ opacity: 0, x: reduced ? 0 : 8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: reduced ? 0 : -8 }} transition={fade} className="flex min-h-full flex-col justify-end gap-3">
               {project.messages.map((message, i) => (
@@ -303,6 +423,17 @@ export function AgentChat() {
                   {active.reply && <Entry key="reply" message={{ role: active.agent, model: active.model, text: active.reply }} onRead={() => setReading({ role: active.agent, model: active.model, text: active.reply })} />}
                 </>
               )}
+              {lineup.map((text, i) => (
+                <article key={`${i}-${text}`} className="max-w-[78%] self-end rounded-[16px] border border-dashed border-label-3/40 px-3 py-2">
+                  <p className="line-clamp-3 whitespace-pre-wrap break-words text-body text-label-2">{text}</p>
+                  <div className="mt-0.5 flex items-center gap-1 text-caption text-label-3">
+                    {t("In der Warteschlange")}
+                    <button type="button" aria-label={t("Aus der Warteschlange entfernen")} title={t("Aus der Warteschlange entfernen")}
+                      onClick={() => queue.set((all) => ({ ...all, [project.cwd]: (all[project.cwd] ?? []).filter((_, k) => k !== i) }))}
+                      className="pressable-fill grid size-4 place-items-center rounded-full hover:text-label"><X size={10} weight="bold" /></button>
+                  </div>
+                </article>
+              ))}
               <div ref={bottom} />
             </motion.div>
             </AnimatePresence>
@@ -320,7 +451,10 @@ export function AgentChat() {
                   className="h-6 whitespace-nowrap hover:text-label disabled:opacity-60 aria-pressed:font-semibold aria-pressed:text-label">{shortModel(model)}</button>
               ))}
             </div>
-            <span className="flex-1" />
+            <span aria-live="polite" className={`flex-1 text-center text-caption tabular-nums ${project.draft.length > MAX_DRAFT ? "text-red" : "text-label-3"}`}>
+              {project.draft.length > MAX_DRAFT * 0.8 ? `${project.draft.length} / ${MAX_DRAFT}` : ""}
+            </span>
+            <ConfirmButton icon={NotePencil} label={t("Neue Unterhaltung")} confirm={t("Verlauf löschen?")} disabled={working || !project.messages.length} onConfirm={() => newConversation(project.cwd)} />
             <div role="group" aria-label={t("Denkaufwand")} className="flex items-center gap-3">
               {effortIds.map((effort) => (
                 <button key={effort} type="button" disabled={working} aria-pressed={project.effort === effort} onClick={() => edit(project.cwd, { effort }, true)}
@@ -352,24 +486,25 @@ export function AgentChat() {
                 );
               })}
             </div>
-            <form className="flex min-h-10 min-w-0 flex-1 items-end gap-2 rounded-[14px] bg-fill-1 pe-1.5 ps-3.5" onSubmit={(event) => { event.preventDefault(); void send(project); }}>
-              <textarea rows={1} maxLength={5000} required aria-label={t("Nachricht")} placeholder={t("Nachricht oder Code eingeben")}
+            <form className="flex min-h-10 min-w-0 flex-1 items-end gap-2 rounded-[14px] bg-fill-1 pe-1.5 ps-3.5" onSubmit={(event) => { event.preventDefault(); submitNow(project); }}>
+              <textarea rows={1} required aria-label={t("Nachricht")} placeholder={t("Nachricht oder Code eingeben")}
                 className="max-h-24 min-h-10 min-w-0 flex-1 resize-none bg-transparent py-[11px] text-body text-label [field-sizing:content]"
                 value={project.draft} onChange={(event) => edit(project.cwd, { draft: event.target.value })}
                 onKeyDown={(event) => {
                   // Enter sends, Shift+Enter breaks the line, and Enter that only confirms an input method's text does neither.
                   if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
                   event.preventDefault();
-                  void send(project);
+                  submitNow(project);
                 }} />
               {working && active && <button type="button" aria-label={t("Stopp")} title={t("Stopp")}
                 onClick={() => { void cancel(active.requestId).catch((error) => errors.set((all) => ({ ...all, [project.cwd]: failure(error) }))); }}
                 className="pressable pressable-fill mb-1.5 grid size-7 shrink-0 place-items-center rounded-full bg-fill-2 text-label">
                 <Square size={12} weight="fill" />
               </button>}
-              <button type="submit" aria-label={t("Senden")} disabled={!isNative || working || !project.draft.trim()}
+              <button type="submit" aria-label={working ? t("In die Warteschlange stellen") : t("Senden")} title={working ? t("In die Warteschlange stellen") : undefined}
+                disabled={!isNative || !project.draft.trim() || project.draft.length > MAX_DRAFT || (working && lineup.length >= MAX_QUEUE)}
                 className="pressable pressable-fill mb-1.5 grid size-7 shrink-0 place-items-center rounded-full bg-fill-2 text-label disabled:opacity-40">
-                {working ? <Loading /> : <ArrowUp size={15} weight="bold" />}
+                <ArrowUp size={15} weight="bold" />
               </button>
             </form>
           </div>
@@ -389,14 +524,20 @@ function Entry({ message, onRead, onRetry }: { message: Message; onRead: () => v
   const reduced = useReducedMotion();
   const enter = { initial: { opacity: 0, y: reduced ? 0 : 6, scale: reduced ? 1 : 0.985, rotateX: reduced ? 0 : -3 }, animate: { opacity: 1, y: 0, scale: 1, rotateX: 0 }, transition: reduced ? fade : springs.snappy, style: { transformPerspective: 650, transformOrigin: "center bottom" } };
   const long = isLong(message.text);
-  const body = (
-    // A long message scrolls inside its own box, so the wheel scrolls it and does not switch tools.
-    <p tabIndex={long ? 0 : undefined} className={`whitespace-pre-wrap break-words text-body text-label ${long ? "max-h-40 select-text overflow-y-auto overscroll-contain pe-1 [scrollbar-width:thin]" : ""}`}>{message.text}</p>
-  );
-  const expand = long && (
-    <button type="button" onClick={onRead} className="pressable-fill mt-0.5 inline-flex items-center gap-1 rounded text-caption text-label-3 hover:text-label-2">
-      <ArrowsOutSimple size={11} weight="bold" />{t("Vollständig lesen")}
-    </button>
+  // A long message scrolls inside its own box, so the wheel scrolls it and does not switch tools.
+  const scroll = long ? "max-h-40 select-text overflow-y-auto overscroll-contain pe-1 [scrollbar-width:thin]" : "";
+  const body = message.role === "user"
+    ? <p tabIndex={long ? 0 : undefined} className={`whitespace-pre-wrap break-words text-body text-label ${scroll}`}>{message.text}</p>
+    : <div tabIndex={long ? 0 : undefined} className={scroll}><Markdown text={message.text} /></div>;
+  const expand = (
+    <div className="mt-0.5 flex items-center gap-1">
+      {long && (
+        <button type="button" onClick={onRead} className="pressable-fill inline-flex items-center gap-1 rounded text-caption text-label-3 hover:text-label-2">
+          <ArrowsOutSimple size={11} weight="bold" />{t("Vollständig lesen")}
+        </button>
+      )}
+      <CopyButton text={message.text} label={t("Nachricht kopieren")} />
+    </div>
   );
   if (message.role === "user") {
     return (
@@ -422,6 +563,25 @@ function Entry({ message, onRead, onRetry }: { message: Message; onRead: () => v
         </button>
       )}
     </motion.article>
+  );
+}
+
+/** A button for something that cannot be undone: the first click asks, the second does it, and the question lapses after a few seconds. */
+function ConfirmButton({ icon: Icon, label, confirm, disabled, onConfirm }: { icon: typeof X; label: string; confirm: string; disabled?: boolean; onConfirm: () => void }) {
+  const [asking, setAsking] = useState(false);
+  useEffect(() => {
+    if (!asking) return;
+    const timer = window.setTimeout(() => setAsking(false), 4000);
+    return () => window.clearTimeout(timer);
+  }, [asking]);
+  useEffect(() => { if (disabled) setAsking(false); }, [disabled]);
+  return (
+    <button type="button" disabled={disabled} aria-label={asking ? confirm : label} title={asking ? confirm : label}
+      onClick={() => { if (asking) { setAsking(false); onConfirm(); } else setAsking(true); }}
+      onBlur={() => setAsking(false)}
+      className={`pressable pressable-fill flex h-6 shrink-0 items-center gap-1 rounded-full px-1.5 text-caption disabled:opacity-40 ${asking ? "bg-fill-2 text-red" : "text-label-3 hover:text-label-2"}`}>
+      <Icon size={12} weight="bold" />{asking && <span className="whitespace-nowrap">{confirm}</span>}
+    </button>
   );
 }
 
@@ -488,13 +648,16 @@ function Reader({ message, onClose }: { message: Message; onClose: () => void })
       <div className="flex h-8 shrink-0 items-center gap-2 pe-1.5 ps-3">
         {message.role !== "user" && <span style={{ color: brandColor[message.role] }}><BrandLogo id={message.role} size={12} /></span>}
         <span className="min-w-0 flex-1 truncate text-footnote font-semibold">{title}</span>
+        <CopyButton text={message.text} label={t("Nachricht kopieren")} />
         <button type="button" onClick={onClose} aria-label={t("Schließen")} title={t("Schließen")}
           className="pressable pressable-fill flex size-6 items-center justify-center rounded-full text-label-3 hover:text-label">
           <X size={13} weight="bold" />
         </button>
       </div>
       <div className="min-h-0 flex-1 select-text overflow-y-auto px-3 pb-3">
-        <p className="whitespace-pre-wrap break-words text-body text-label">{message.text}</p>
+        {message.role === "user"
+          ? <p className="whitespace-pre-wrap break-words text-body text-label">{message.text}</p>
+          : <Markdown text={message.text} />}
       </div>
     </motion.div>
   );

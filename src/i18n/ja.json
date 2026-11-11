@@ -1677,5 +1677,13 @@
  "Ohne Ordner": "フォルダなし",
  "Im Chat öffnen": "チャットで開く",
  "Mit Bearbeitungsrechten wiederholen": "編集を許可して再試行",
- "In diesem Projekt arbeitet bereits ein Agent, oder es laufen schon vier": "このプロジェクトではすでにエージェントが実行中か、4つが実行中です"
+ "In diesem Projekt arbeitet bereits ein Agent, oder es laufen schon vier": "このプロジェクトではすでにエージェントが実行中か、4つが実行中です",
+ "Nachricht kopieren": "メッセージをコピー",
+ "Projekt entfernen": "プロジェクトを削除",
+ "Verlauf löschen?": "履歴を削除しますか？",
+ "Neue Unterhaltung": "新しい会話",
+ "In der Warteschlange": "待機中",
+ "Aus der Warteschlange entfernen": "待機から外す",
+ "In die Warteschlange stellen": "待機に追加",
+ "Die Nachricht ist zu lang. Kürze sie oder teile sie auf": "メッセージが長すぎます。短くするか分割してください"
 }

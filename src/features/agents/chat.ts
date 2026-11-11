@@ -29,6 +29,14 @@ const LATEST_REPLY_CHARS = 1200;
 const OLDER_REPLY_CHARS = 300;
 const USER_CHARS = 400;
 
+/**
+ * The longest message the box takes. The backend refuses a prompt over 12 000 UTF-16 units, and a handoff
+ * (HANDOFF_CHARS plus its short lead-in) rides along with the text, so this leaves room for it.
+ */
+export const MAX_DRAFT = 9000;
+/** Messages waiting behind a running turn in one project. */
+export const MAX_QUEUE = 5;
+
 export const modelsOf = (agent: Agent): readonly string[] => AGENTS[agent].models;
 
 /** A name short enough for a row of them. */

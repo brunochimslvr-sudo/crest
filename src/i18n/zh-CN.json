@@ -1677,5 +1677,13 @@
  "Ohne Ordner": "无文件夹",
  "Im Chat öffnen": "在聊天中打开",
  "Mit Bearbeitungsrechten wiederholen": "允许编辑后重试",
- "In diesem Projekt arbeitet bereits ein Agent, oder es laufen schon vier": "此项目已有代理在运行，或已有四个在运行"
+ "In diesem Projekt arbeitet bereits ein Agent, oder es laufen schon vier": "此项目已有代理在运行，或已有四个在运行",
+ "Nachricht kopieren": "复制消息",
+ "Projekt entfernen": "移除项目",
+ "Verlauf löschen?": "删除历史记录？",
+ "Neue Unterhaltung": "新对话",
+ "In der Warteschlange": "排队中",
+ "Aus der Warteschlange entfernen": "从队列中移除",
+ "In die Warteschlange stellen": "加入队列",
+ "Die Nachricht ist zu lang. Kürze sie oder teile sie auf": "消息过长。请缩短或拆分"
 }

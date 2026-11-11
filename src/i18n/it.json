@@ -1677,5 +1677,13 @@
  "Ohne Ordner": "Senza cartella",
  "Im Chat öffnen": "Apri nella chat",
  "Mit Bearbeitungsrechten wiederholen": "Riprova con il permesso di modificare",
- "In diesem Projekt arbeitet bereits ein Agent, oder es laufen schon vier": "In questo progetto lavora già un agente, oppure ne sono attivi quattro"
+ "In diesem Projekt arbeitet bereits ein Agent, oder es laufen schon vier": "In questo progetto lavora già un agente, oppure ne sono attivi quattro",
+ "Nachricht kopieren": "Copia messaggio",
+ "Projekt entfernen": "Rimuovi progetto",
+ "Verlauf löschen?": "Eliminare la cronologia?",
+ "Neue Unterhaltung": "Nuova conversazione",
+ "In der Warteschlange": "In coda",
+ "Aus der Warteschlange entfernen": "Rimuovi dalla coda",
+ "In die Warteschlange stellen": "Metti in coda",
+ "Die Nachricht ist zu lang. Kürze sie oder teile sie auf": "Il messaggio è troppo lungo. Accorcialo o dividilo"
 }

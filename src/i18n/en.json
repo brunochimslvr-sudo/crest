@@ -1677,5 +1677,13 @@
  "Ohne Ordner": "No folder",
  "Im Chat öffnen": "Open in chat",
  "Mit Bearbeitungsrechten wiederholen": "Retry with permission to edit",
- "In diesem Projekt arbeitet bereits ein Agent, oder es laufen schon vier": "An agent is already working in this project, or four are running"
+ "In diesem Projekt arbeitet bereits ein Agent, oder es laufen schon vier": "An agent is already working in this project, or four are running",
+ "Nachricht kopieren": "Copy message",
+ "Projekt entfernen": "Remove project",
+ "Verlauf löschen?": "Delete history?",
+ "Neue Unterhaltung": "New conversation",
+ "In der Warteschlange": "Queued",
+ "Aus der Warteschlange entfernen": "Remove from queue",
+ "In die Warteschlange stellen": "Add to queue",
+ "Die Nachricht ist zu lang. Kürze sie oder teile sie auf": "The message is too long. Shorten it or split it up"
 }

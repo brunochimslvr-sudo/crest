@@ -1677,5 +1677,13 @@
  "Ohne Ordner": "Sin carpeta",
  "Im Chat öffnen": "Abrir en el chat",
  "Mit Bearbeitungsrechten wiederholen": "Reintentar con permiso para editar",
- "In diesem Projekt arbeitet bereits ein Agent, oder es laufen schon vier": "Ya hay un agente trabajando en este proyecto, o hay cuatro en marcha"
+ "In diesem Projekt arbeitet bereits ein Agent, oder es laufen schon vier": "Ya hay un agente trabajando en este proyecto, o hay cuatro en marcha",
+ "Nachricht kopieren": "Copiar mensaje",
+ "Projekt entfernen": "Quitar proyecto",
+ "Verlauf löschen?": "¿Borrar el historial?",
+ "Neue Unterhaltung": "Nueva conversación",
+ "In der Warteschlange": "En cola",
+ "Aus der Warteschlange entfernen": "Quitar de la cola",
+ "In die Warteschlange stellen": "Poner en cola",
+ "Die Nachricht ist zu lang. Kürze sie oder teile sie auf": "El mensaje es demasiado largo. Acórtalo o divídelo"
 }

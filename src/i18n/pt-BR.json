@@ -1677,5 +1677,13 @@
  "Ohne Ordner": "Sem pasta",
  "Im Chat öffnen": "Abrir no chat",
  "Mit Bearbeitungsrechten wiederholen": "Repetir com permissão para editar",
- "In diesem Projekt arbeitet bereits ein Agent, oder es laufen schon vier": "Já há um agente trabalhando neste projeto, ou quatro em execução"
+ "In diesem Projekt arbeitet bereits ein Agent, oder es laufen schon vier": "Já há um agente trabalhando neste projeto, ou quatro em execução",
+ "Nachricht kopieren": "Copiar mensagem",
+ "Projekt entfernen": "Remover projeto",
+ "Verlauf löschen?": "Apagar histórico?",
+ "Neue Unterhaltung": "Nova conversa",
+ "In der Warteschlange": "Na fila",
+ "Aus der Warteschlange entfernen": "Remover da fila",
+ "In die Warteschlange stellen": "Colocar na fila",
+ "Die Nachricht ist zu lang. Kürze sie oder teile sie auf": "A mensagem é longa demais. Reduza ou divida em partes"
 }

@@ -1677,5 +1677,13 @@
  "Ohne Ordner": "Sans dossier",
  "Im Chat öffnen": "Ouvrir dans le chat",
  "Mit Bearbeitungsrechten wiederholen": "Réessayer avec l’autorisation de modifier",
- "In diesem Projekt arbeitet bereits ein Agent, oder es laufen schon vier": "Un agent travaille déjà dans ce projet, ou quatre sont en cours"
+ "In diesem Projekt arbeitet bereits ein Agent, oder es laufen schon vier": "Un agent travaille déjà dans ce projet, ou quatre sont en cours",
+ "Nachricht kopieren": "Copier le message",
+ "Projekt entfernen": "Retirer le projet",
+ "Verlauf löschen?": "Supprimer l'historique ?",
+ "Neue Unterhaltung": "Nouvelle conversation",
+ "In der Warteschlange": "En attente",
+ "Aus der Warteschlange entfernen": "Retirer de la file",
+ "In die Warteschlange stellen": "Mettre en file d'attente",
+ "Die Nachricht ist zu lang. Kürze sie oder teile sie auf": "Le message est trop long. Raccourcissez-le ou scindez-le"
 }
